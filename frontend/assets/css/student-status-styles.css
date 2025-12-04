@@ -1,0 +1,359 @@
+/* Student Status Page Styles */
+
+/* Lookup Section */
+.lookup-section {
+    max-width: 600px;
+    margin: 0 auto;
+    padding: 60px 24px;
+}
+
+.lookup-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 48px 40px;
+    text-align: center;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+}
+
+.lookup-card h2 {
+    font-size: 28px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 12px;
+    font-family: 'Lato', sans-serif;
+}
+
+.lookup-subtitle {
+    font-size: 16px;
+    color: #666;
+    margin-bottom: 32px;
+    font-family: 'Lato', sans-serif;
+}
+
+.lookup-form {
+    margin-top: 24px;
+}
+
+.input-group {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.nuid-input {
+    flex: 1;
+    padding: 16px 20px;
+    border: 2px solid #d0d0d0;
+    border-radius: 4px;
+    font-size: 16px;
+    font-family: 'Lato', sans-serif;
+    font-weight: 500;
+    transition: border-color 0.2s;
+}
+
+.nuid-input:focus {
+    outline: none;
+    border-color: #cc0000;
+}
+
+/* Buttons - Professional Styling */
+.btn-primary {
+    background: #cc0000;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 4px;
+    font-size: 15px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.2s;
+    font-family: 'Lato', sans-serif;
+    letter-spacing: 0.3px;
+}
+
+.btn-primary:hover {
+    background: #aa0000;
+}
+
+.btn-secondary {
+    background: white;
+    color: #333;
+    border: 1px solid #d0d0d0;
+    padding: 10px 20px;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'Lato', sans-serif;
+    letter-spacing: 0.3px;
+}
+
+.btn-secondary:hover {
+    border-color: #999;
+    background: #f8f8f8;
+}
+
+.btn-lookup {
+    padding: 16px 40px;
+    font-size: 15px;
+    font-weight: 500;
+    white-space: nowrap;
+    min-width: 200px;
+    letter-spacing: 0.5px;
+}
+
+/* Student Info Header */
+.status-display-section {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 40px 24px;
+}
+
+.student-info-header {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 24px;
+    margin-bottom: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+
+.student-info h3 {
+    font-size: 24px;
+    font-weight: 600;
+    color: #333;
+    margin: 0 0 8px 0;
+    font-family: 'Lato', sans-serif;
+}
+
+.student-info p {
+    font-size: 14px;
+    color: #666;
+    margin: 0;
+    font-family: 'Lato', sans-serif;
+}
+
+/* Student Requests Container */
+.student-requests-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Request Card */
+.student-request-card {
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 24px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    transition: box-shadow 0.2s;
+}
+
+.student-request-card:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+}
+
+.request-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.request-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: #333;
+    margin: 0 0 8px 0;
+    font-family: 'Lato', sans-serif;
+}
+
+.request-meta-info {
+    font-size: 13px;
+    color: #666;
+    font-family: 'Lato', sans-serif;
+}
+
+/* Status Badge */
+.status-badge {
+    display: inline-block;
+    padding: 8px 16px;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: 'Lato', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.status-badge.pending {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeaa7;
+}
+
+.status-badge.under-review {
+    background: #cfe2ff;
+    color: #084298;
+    border: 1px solid #b6d4fe;
+}
+
+.status-badge.approved {
+    background: #d1e7dd;
+    color: #0f5132;
+    border: 1px solid #badbcc;
+}
+
+.status-badge.denied {
+    background: #f8d7da;
+    color: #842029;
+    border: 1px solid #f5c2c7;
+}
+
+.status-badge.requires-info {
+    background: #e7e7e7;
+    color: #333;
+    border: 1px solid #d0d0d0;
+}
+
+/* Request Details Grid */
+.request-details-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.detail-block {
+    display: flex;
+    flex-direction: column;
+}
+
+.detail-label {
+    font-size: 12px;
+    color: #666;
+    font-weight: 500;
+    margin-bottom: 6px;
+    font-family: 'Lato', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.detail-value {
+    font-size: 15px;
+    color: #333;
+    font-weight: 500;
+    font-family: 'Lato', sans-serif;
+}
+
+/* Credits Badge */
+.credits-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    background: #0f5132;
+    color: white;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+/* Advisor Notes Section */
+.advisor-notes-section {
+    background: #f8f8f8;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    padding: 16px;
+    margin-top: 16px;
+}
+
+.advisor-notes-section h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    margin: 0 0 8px 0;
+    font-family: 'Lato', sans-serif;
+}
+
+.advisor-notes-text {
+    font-size: 14px;
+    color: #555;
+    line-height: 1.6;
+    font-family: 'Lato', sans-serif;
+    margin: 0;
+}
+
+/* Empty State */
+.empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+}
+
+.empty-state h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 12px;
+    font-family: 'Lato', sans-serif;
+}
+
+.empty-state p {
+    font-size: 15px;
+    color: #666;
+    font-family: 'Lato', sans-serif;
+    margin-bottom: 24px;
+}
+
+/* Loading State */
+.loading-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #666;
+    font-size: 15px;
+    font-family: 'Lato', sans-serif;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .lookup-card {
+        padding: 32px 24px;
+    }
+
+    .input-group {
+        flex-direction: column;
+    }
+
+    .btn-lookup {
+        width: 100%;
+        min-width: auto;
+    }
+
+    .student-info-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+    }
+
+    .student-info-header button {
+        width: 100%;
+    }
+
+    .request-header-row {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .request-details-grid {
+        grid-template-columns: 1fr;
+    }
+}

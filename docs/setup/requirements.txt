@@ -1,0 +1,73 @@
+# CPL Website - Python Dependencies
+# Credit for Prior Learning System - IBM watsonx.ai Integration
+
+# ==================== CORE WEB FRAMEWORK ====================
+Flask==3.0.0
+Flask-CORS==4.0.0
+
+# ==================== IBM CLOUD & AI SERVICES ====================
+# IBM watsonx.ai SDK for embeddings and AI models
+ibm-watsonx-ai==1.0.5
+
+# IBM Cloud Object Storage (S3-compatible)
+ibm-boto3==1.17.0
+ibm-botocore==1.20.0
+
+# Milvus vector database client
+pymilvus==2.3.4
+
+# Presto client for watsonx.data (Iceberg tables)
+prestodb==0.8.4
+
+# ==================== DOCUMENT PROCESSING ====================
+# PDF text extraction
+PyPDF2==3.0.1
+
+# Microsoft Word document processing
+python-docx==1.1.0
+
+# LangChain for intelligent text chunking
+langchain-text-splitters==0.2.2
+langchain-core==0.2.11
+
+# ==================== UTILITIES ====================
+# Environment variables management
+python-dotenv==1.0.0
+
+# HTTP client for API calls
+requests==2.31.0
+
+# ==================== DATA PROCESSING ====================
+# Data manipulation (used by AI libraries)
+pandas==2.1.4
+numpy==1.24.3
+
+# ==================== DEVELOPMENT & DEBUGGING ====================
+# Enhanced traceback formatting
+traceback2==1.4.0
+
+# ==================== OPTIONAL DEPENDENCIES ====================
+# Alternative document processing (if mammoth needed in Python)
+# mammoth==1.6.0
+
+# Image processing (if needed for document thumbnails)
+# Pillow==10.1.0
+
+# ==================== VERSION NOTES ====================
+# Python 3.8+ required for IBM watsonx.ai
+# Python 3.9+ recommended for optimal performance
+# Compatible with Python 3.8, 3.9, 3.10, 3.11
+
+# ==================== INSTALLATION NOTES ====================
+# Install with: pip install -r requirements.txt
+# For development: pip install -r requirements.txt --upgrade
+#
+# Environment variables required:
+# - WATSONX_AI_APIKEY
+# - WATSONX_AI_SERVICE_URL
+# - WATSONX_AI_PROJECT_ID
+# - MILVUS_CONNECTION_ID
+# - MILVUS_HOST, MILVUS_PORT, MILVUS_USERNAME, MILVUS_PASSWORD
+# - COS_API_KEY, COS_INSTANCE_ID, COS_ENDPOINT, COS_BUCKET_NAME
+# - WATSONX_DATA_HOST, WATSONX_DATA_PORT, WATSONX_DATA_USER, WATSONX_DATA_PASSWORD
+# - ICEBERG_CATALOG, ICEBERG_SCHEMA, ICEBERG_TABLE

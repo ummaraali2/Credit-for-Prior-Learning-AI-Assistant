@@ -1,0 +1,27 @@
+{
+  "name": "cpl-frontend-tests",
+  "version": "1.0.0",
+  "description": "Frontend tests for CPL Website",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "@testing-library/dom": "^9.3.3",
+    "@testing-library/jest-dom": "^6.1.4",
+    "jest-environment-jsdom": "^29.7.0"
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "setupFilesAfterEnv": ["@testing-library/jest-dom"],
+    "testMatch": [
+      "**/tests/frontend/**/*.test.js"
+    ],
+    "collectCoverageFrom": [
+      "frontend/assets/js/**/*.js",
+      "!frontend/assets/js/**/*.test.js"
+    ]
+  }
+}

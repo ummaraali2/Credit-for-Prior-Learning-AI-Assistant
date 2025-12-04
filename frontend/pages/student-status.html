@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My CPL Status - Northeastern University</title>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="student-status-styles.css">
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <div class="top-bar">
+        <div class="top-bar-container">
+            <a href="#" class="login-btn">LOGIN</a>
+        </div>
+    </div>
+
+    <!-- Main Header -->
+    <header class="header">
+        <nav class="nav-container">
+            <div class="logo-section">
+                <a href="landing.html" class="logo-container">
+                    <img src="logo.png" alt="Northeastern University Logo" class="nu-logo">
+                </a>
+                <div class="university-text">
+                    <h1>Northeastern University</h1>
+                    <a href="https://cps.northeastern.edu/" target="_blank" class="cps-link">
+                        <h2>College of Professional Studies</h2>
+                    </a>
+                </div>
+            </div>
+            
+            <div class="nav-menu">
+                <a href="index.html" class="nav-item">Submit Request</a>
+                <a href="student-status.html" class="nav-item active">Check Status</a>
+                <a href="landing.html" class="nav-item">Home</a>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-container">
+            <div class="hero-content">
+                <h1 class="hero-title">My CPL Request Status</h1>
+                <p class="hero-subtitle">Track the status of your Credit for Prior Learning requests.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <div class="content-container">
+            
+            <!-- NUID Lookup Section -->
+            <div class="lookup-section" id="lookup-section">
+                <div class="lookup-card">
+                    <h2>Check Your Request Status</h2>
+                    <p class="lookup-subtitle">Enter your NUID to view your CPL requests</p>
+                    
+                    <form id="nuid-lookup-form" class="lookup-form">
+                        <div class="input-group">
+                            <input 
+                                type="text" 
+                                id="nuid-input" 
+                                placeholder="Enter your NUID" 
+                                required
+                                class="nuid-input"
+                            >
+                            <button type="submit" class="btn-primary btn-lookup">View My Status</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Status Display Section (Hidden initially) -->
+            <div class="status-display-section" id="status-display-section" style="display: none;">
+                <div class="student-info-header">
+                    <div class="student-info">
+                        <h3 id="student-name-display">Student Name</h3>
+                        <p id="nuid-display">NUID: N12345678</p>
+                    </div>
+                    <button onclick="changeLookup()" class="btn-secondary">Change NUID</button>
+                </div>
+
+                <div id="requests-container" class="student-requests-container">
+                    <!-- Requests will be loaded here -->
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script src="student-status-script.js"></script>
+</body>
+</html>

@@ -1,0 +1,130 @@
+{
+    "openapi": "3.0.3",
+    "info": {
+      "title": "CPL Evaluator API",
+      "description": "Evaluates Credit for Prior Learning requests using RAG with Milvus",
+      "version": "1.0.0"
+    },
+    "servers": [
+      {
+        "url": "https://au-syd.ml.cloud.ibm.com"
+      }
+    ],
+    "security": [
+      {
+        "oauth2": []
+      }
+    ],
+    "paths": {
+      "/ml/v4/deployments/f90de783-5777-4c0f-9505-ba0473bced3d/ai_service": {
+        "post": {
+          "summary": "Evaluate CPL request with AI analysis",
+          "description": "Analyzes student documents and provides CPL recommendation",
+          "operationId": "evaluateCPLRequest",
+          "parameters": [
+            {
+              "name": "version",
+              "in": "query",
+              "description": "API version",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "default": "2021-05-01"
+              }
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["messages"],
+                  "properties": {
+                    "messages": {
+                      "type": "array",
+                      "description": "Chat messages",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "role": {
+                            "type": "string",
+                            "enum": ["user", "assistant", "system"]
+                          },
+                          "content": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["role", "content"]
+                      }
+                    },
+                    "input": {
+                      "type": "object",
+                      "description": "Student request details",
+                      "properties": {
+                        "student_name": {
+                          "type": "string",
+                          "description": "Student's full name"
+                        },
+                        "nuid": {
+                          "type": "string",
+                          "description": "Northeastern University ID"
+                        },
+                        "request_type": {
+                          "type": "string",
+                          "description": "Type of CPL request"
+                        },
+                        "target_course": {
+                          "type": "string",
+                          "description": "Course code and name"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Evaluation completed successfully",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "body": {
+                        "type": "object",
+                        "description": "Evaluation result"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Unexpected error"
+            }
+          }
+        }
+      }
+    },
+    "components": {
+      "securitySchemes": {
+        "oauth2": {
+          "type": "oauth2",
+          "flows": {
+            "x-apikey": {
+              "tokenUrl": "https://iam.cloud.ibm.com/identity/token",
+              "grantType": "urn:ibm:params:oauth:grant-type:apikey",
+              "secretKeys": [
+                "apikey"
+              ],
+              "paramKeys": [],
+              "scopes": {}
+            }
+          }
+        }
+      }
+    }
+  }

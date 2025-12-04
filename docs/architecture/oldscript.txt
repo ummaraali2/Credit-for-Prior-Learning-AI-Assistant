@@ -1,0 +1,397 @@
+// Global variables
+let uploadedFiles = [];
+let waInstance = null;
+const BACKEND_URL = 'http://localhost:3000';
+
+// Initialize Watson Assistant
+window.watsonAssistantChatOptions = {
+    integrationID: "2d6e2e03-4cef-4e0f-b131-f989bc4776d2",
+    region: "au-syd",
+    serviceInstanceID: "fb664aa6-6a7e-4626-b086-668dc8b1fa15",
+    
+    onLoad: async (instance) => {
+        waInstance = instance;
+        
+        // Listen for view changes
+        instance.on({
+            type: 'view:change',
+            handler: (event) => {
+                console.log('🔄 View changed');
+                setTimeout(() => addUploadButtons(instance), 300);
+            }
+        });
+        
+        // ATTACH FILES when user clicks send button
+instance.on({
+    type: 'pre:send',
+    handler: (event) => {
+        console.log('🔍 PRE-SEND triggered');
+        console.log('📦 Files in array:', uploadedFiles.length);
+        
+        if (uploadedFiles.length > 0) {
+            console.log('📤 Attaching', uploadedFiles.length, 'file(s) to message');
+            
+            // Initialize context for ACTIONS (not Dialog)
+            event.data.context = event.data.context || {};
+            event.data.context.skills = event.data.context.skills || {};
+            event.data.context.skills['actions skill'] = event.data.context.skills['actions skill'] || {};
+            event.data.context.skills['actions skill'].skill_variables = event.data.context.skills['actions skill'].skill_variables || {};
+            
+            // Attach files to the CORRECT path for Actions
+            event.data.context.skills['actions skill'].skill_variables.uploaded_files = uploadedFiles.map(f => ({
+                id: f.id.toString(),
+                name: f.name,
+                size: f.size,
+                type: f.type,
+                cosUrl: f.cosUrl || '',
+                analysisResult: f.analysisResult || ''
+            }));
+            
+            console.log('✅ Files attached to Actions skill context');
+            console.log('📋 Context:', JSON.stringify(event.data.context, null, 2));
+        }
+    }
+});
+        
+        // CLEAR FILES after message is sent
+        instance.on({
+            type: 'send',
+            handler: () => {
+                if (uploadedFiles.length > 0) {
+                    console.log('📨 Message sent with files, clearing');
+                    showToast(`Sent with ${uploadedFiles.length} file(s)`, 'success');
+                    uploadedFiles = [];
+                    renderFiles();
+                }
+            }
+        });
+        
+        // Listen for custom file upload requests
+        instance.on({
+            type: 'customResponse',
+            handler: (event) => {
+                if (event.data.message.user_defined?.user_defined_type === 'user-file-upload') {
+                    document.getElementById('file-upload-input').click();
+                }
+            }
+        });
+        
+        await instance.render();
+        
+        setTimeout(() => addUploadButtons(instance), 500);
+        
+        console.log('✅ Watson Assistant loaded');
+    }
+};
+
+// Load Watson Assistant
+setTimeout(function() {
+    const t = document.createElement('script');
+    t.src = "https://web-chat.global.assistant.watson.appdomain.cloud/versions/" + 
+            (window.watsonAssistantChatOptions.clientVersion || 'latest') + 
+            "/WatsonAssistantChatEntry.js";
+    document.head.appendChild(t);
+});
+
+// Add upload buttons to BOTH home page and conversation page
+function addUploadButtons(instance) {
+    if (!instance.writeableElements) {
+        console.log('⏳ writeableElements not ready');
+        setTimeout(() => addUploadButtons(instance), 500);
+        return;
+    }
+    
+    // Add to HOME PAGE
+    addHomePageButton(instance);
+    
+    // Add to CONVERSATION PAGE
+    addConversationPageButton(instance);
+    
+    setupFileInput();
+}
+
+// Add button to HOME PAGE using homeScreenAfterStartersElement
+function addHomePageButton(instance) {
+    try {
+        const homeElement = instance.writeableElements.homeScreenAfterStartersElement;
+        
+        if (!homeElement) {
+            console.log('⏳ Home screen element not available');
+            return;
+        }
+        
+        // Check if already added
+        if (document.getElementById('cpl-home-upload-btn')) {
+            return;
+        }
+        
+        // Create transparent button for home page
+        const container = document.createElement('div');
+        container.style.cssText = `
+            display: flex;
+            justify-content: center;
+            padding: 16px;
+            background: transparent;
+        `;
+        
+        const btn = document.createElement('button');
+        btn.id = 'cpl-home-upload-btn';
+        btn.title = 'Upload Document';
+        btn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
+                <path fill="#999" d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 0 1 5 0v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5a2.5 2.5 0 0 0 5 0V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/>
+            </svg>
+            <span style="margin-left: 6px; font-size: 13px; color: #999;">Upload Document</span>
+        `;
+        btn.style.cssText = `
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 8px 16px;
+            display: inline-flex;
+            align-items: center;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+            font-family: 'Lato', sans-serif;
+        `;
+        btn.onmouseover = () => btn.style.opacity = '1';
+        btn.onmouseout = () => btn.style.opacity = '0.7';
+        btn.onclick = () => document.getElementById('file-upload-input').click();
+        
+        container.appendChild(btn);
+        homeElement.innerHTML = '';
+        homeElement.appendChild(container);
+        
+        console.log('✅ Home page button added');
+        
+    } catch (error) {
+        console.error('❌ Error adding home button:', error);
+    }
+}
+
+// Add button to CONVERSATION PAGE using beforeInputElement
+function addConversationPageButton(instance) {
+    try {
+        const beforeInput = instance.writeableElements.beforeInputElement;
+        
+        if (!beforeInput) {
+            console.log('⏳ Conversation input element not available');
+            return;
+        }
+        
+        // Check if already added
+        if (document.getElementById('cpl-conv-upload-btn')) {
+            return;
+        }
+        
+        // Create transparent container
+        const container = document.createElement('div');
+        container.id = 'cpl-conv-container';
+        container.style.cssText = `
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            background: transparent;
+        `;
+        
+        // Paperclip button
+        const btn = document.createElement('button');
+        btn.id = 'cpl-conv-upload-btn';
+        btn.title = 'Upload Document';
+        btn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="20" height="20">
+                <path fill="#666" d="M16.5 6v11.5c0 2.21-1.79 4-4 4s-4-1.79-4-4V5a2.5 2.5 0 0 1 5 0v10.5c0 .55-.45 1-1 1s-1-.45-1-1V6H10v9.5a2.5 2.5 0 0 0 5 0V5c0-2.21-1.79-4-4-4S7 2.79 7 5v12.5c0 3.04 2.46 5.5 5.5 5.5s5.5-2.46 5.5-5.5V6h-1.5z"/>
+            </svg>
+        `;
+        btn.style.cssText = `
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 6px;
+            display: inline-flex;
+            align-items: center;
+            margin-right: 8px;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        `;
+        btn.onmouseover = () => btn.style.opacity = '1';
+        btn.onmouseout = () => btn.style.opacity = '0.7';
+        btn.onclick = () => document.getElementById('file-upload-input').click();
+        
+        // File preview
+        const preview = document.createElement('div');
+        preview.id = 'cpl-file-preview';
+        preview.style.cssText = `
+            flex: 1;
+            font-size: 12px;
+            color: #666;
+            font-family: 'Lato', sans-serif;
+        `;
+        
+        container.appendChild(btn);
+        container.appendChild(preview);
+        beforeInput.innerHTML = '';
+        beforeInput.appendChild(container);
+        
+        renderFiles();
+        
+        console.log('✅ Conversation page button added');
+        
+    } catch (error) {
+        console.error('❌ Error adding conversation button:', error);
+    }
+}
+
+// Setup file input
+function setupFileInput() {
+    const input = document.getElementById('file-upload-input');
+    if (input && !input.dataset.listener) {
+        input.addEventListener('change', handleFileSelect);
+        input.dataset.listener = 'true';
+    }
+}
+
+// Handle file selection
+function handleFileSelect(event) {
+    const files = event.target.files;
+    if (!files.length) return;
+    
+    Array.from(files).forEach(file => {
+        if (!validateFile(file)) return;
+        
+        uploadedFiles.push({
+            id: Date.now() + Math.random(),
+            file,
+            name: file.name,
+            size: file.size,
+            type: file.type,
+            status: 'pending'
+        });
+    });
+    
+    renderFiles();
+    uploadedFiles.forEach(f => {
+        if (f.status === 'pending') uploadFileToBackend(f);
+    });
+    
+    event.target.value = '';
+}
+
+// Validate file
+function validateFile(file) {
+    const MAX_SIZE = 10 * 1024 * 1024;
+    const ALLOWED = [
+        'application/pdf', 'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'text/plain', 'image/jpeg', 'image/png', 'image/jpg'
+    ];
+    
+    if (file.size > MAX_SIZE) {
+        showToast('File too large (max 10MB)', 'error');
+        return false;
+    }
+    
+    if (!ALLOWED.includes(file.type)) {
+        showToast('Invalid file type', 'error');
+        return false;
+    }
+    
+    return true;
+}
+
+// Upload to backend
+async function uploadFileToBackend(fileObj) {
+    const formData = new FormData();
+    formData.append('file', fileObj.file);
+    formData.append('fileId', fileObj.id);
+    
+    fileObj.status = 'uploading';
+    showToast(`Uploading ${fileObj.name}...`, 'info');
+    
+    try {
+        const response = await fetch(`${BACKEND_URL}/api/upload`, {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) throw new Error('Upload failed');
+        
+        const result = await response.json();
+        fileObj.status = 'uploaded';
+        fileObj.cosUrl = result.cosUrl;
+        fileObj.analysisResult = result.analysisResult;
+        
+        showToast(`✓ ${fileObj.name} ready to send`, 'success');
+        renderFiles();
+        
+        // Files stay visible until user clicks send button
+        
+    } catch (error) {
+        console.error('Upload error:', error);
+        fileObj.status = 'error';
+        showToast(`Failed: ${fileObj.name}`, 'error');
+        renderFiles();
+    }
+}
+
+// Render files (for conversation page)
+function renderFiles() {
+    const preview = document.getElementById('cpl-file-preview');
+    if (!preview) return;
+    
+    if (uploadedFiles.length === 0) {
+        preview.innerHTML = '';
+        return;
+    }
+    
+    // Create individual file items with × buttons
+    preview.innerHTML = uploadedFiles.map(f => {
+        const icon = getIcon(f.type);
+        const name = f.name.length > 20 ? f.name.substring(0, 20) + '...' : f.name;
+        return `
+            <span style="display: inline-flex; align-items: center; background: rgba(0,0,0,0.05); padding: 4px 8px; border-radius: 12px; margin-right: 6px; font-size: 11px;">
+                ${icon} ${name}
+                <button onclick="removeFile('${f.id}')" style="background: none; border: none; color: #da1e28; cursor: pointer; margin-left: 6px; padding: 0; font-size: 14px; font-weight: bold;" title="Remove file">×</button>
+            </span>
+        `;
+    }).join('');
+}
+
+// Remove file
+function removeFile(fileId) {
+    uploadedFiles = uploadedFiles.filter(f => f.id != fileId);
+    renderFiles();
+    showToast('File removed', 'success');
+}
+
+// Export removeFile globally
+window.removeFile = removeFile;
+
+// Helpers
+function getIcon(type) {
+    if (type.includes('pdf')) return '📄';
+    if (type.includes('word') || type.includes('document')) return '📝';
+    if (type.includes('image')) return '🖼️';
+    if (type.includes('text')) return '📃';
+    return '📎';
+}
+
+function showToast(message, type = 'info') {
+    document.querySelectorAll('.cpl-toast').forEach(el => el.remove());
+    
+    const toast = document.createElement('div');
+    toast.className = 'cpl-toast';
+    toast.textContent = message;
+    toast.style.cssText = `
+        position: fixed; top: 20px; right: 20px; padding: 12px 20px;
+        border-radius: 6px; font-size: 14px; z-index: 999999;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        font-family: 'Lato', sans-serif;
+        ${type === 'success' ? 'background: #24a148; color: white;' : ''}
+        ${type === 'error' ? 'background: #da1e28; color: white;' : ''}
+        ${type === 'info' ? 'background: #0f62fe; color: white;' : ''}
+    `;
+    
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}

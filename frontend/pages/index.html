@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Portal - CPL - Northeastern University</title>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Hide file input */
+        .file-input-hidden {
+            display: none;
+        }
+
+        /* File Preview Container - Inside Watson Assistant */
+        .wa-file-preview-container {
+            padding: 8px 12px;
+            max-height: 200px;
+            overflow-y: auto;
+            background: #f4f4f4;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        .wa-file-preview-item {
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 6px;
+            padding: 8px 10px;
+            margin-bottom: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-family: 'Lato', sans-serif;
+        }
+
+        .wa-file-preview-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .wa-file-preview-icon {
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .wa-file-preview-details {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .wa-file-preview-name {
+            font-size: 12px;
+            font-weight: 600;
+            color: #333;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .wa-file-preview-size {
+            font-size: 10px;
+            color: #666;
+        }
+
+        .wa-file-remove-btn {
+            background: #da1e28;
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 12px;
+            flex-shrink: 0;
+            transition: all 0.2s ease;
+        }
+
+        .wa-file-remove-btn:hover {
+            background: #ba1b23;
+            transform: scale(1.1);
+        }
+
+        /* Upload Status Toast */
+        .upload-status-toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 10000;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            animation: slideIn 0.3s ease;
+        }
+
+        .upload-status-toast.success {
+            background: #24a148;
+            color: white;
+        }
+
+        .upload-status-toast.error {
+            background: #da1e28;
+            color: white;
+        }
+
+        .upload-status-toast.uploading {
+            background: #0f62fe;
+            color: white;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        /* Paperclip button inside Watson Assistant */
+        .wa-upload-button {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            border-radius: 4px;
+        }
+
+        .wa-upload-button:hover {
+            background: rgba(204, 0, 0, 0.1);
+        }
+
+        .wa-upload-button svg {
+            width: 20px;
+            height: 20px;
+            fill: #cc0000;
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <div class="top-bar">
+        <div class="top-bar-container">
+            <a href="#" class="login-btn">LOGIN</a>
+        </div>
+    </div>
+
+    <!-- Main Header -->
+    <header class="header">
+        <nav class="nav-container">
+            <div class="logo-section">
+                <a href="landing.html" class="logo-container">
+                    <img src="logo.png" alt="Northeastern University Logo" class="nu-logo">
+                    <a href="index.html" class="nav-item active">Submit Request</a>
+                    <a href="student-status.html" class="nav-item">Check Status</a>
+                </a>
+                <div class="university-text">
+                    <h1>Northeastern University</h1>
+                    <a href="https://cps.northeastern.edu/" target="_blank" class="cps-link">
+                        <h2>College of Professional Studies</h2>
+                    </a>
+                </div>
+            </div>
+            
+            <div class="nav-menu">
+                <a href="landing.html" class="nav-item">← Back to Home</a>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="hero-container">
+            <div class="hero-content">
+                <h1 class="hero-title">Student CPL Portal</h1>
+                <p class="hero-subtitle">Turn your experience and professional certifications into academic credits.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+        <div class="content-container">
+            <div class="cpl-portal-section">
+                <div class="assistant-area">
+                    <!-- Watson Assistant will be embedded here -->
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Hidden File Input -->
+    <input type="file" id="file-upload-input" class="file-input-hidden" multiple accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png">
+
+    <script src="script.js"></script>
+</body>
+</html>

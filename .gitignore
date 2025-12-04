@@ -1,0 +1,26 @@
+# Create .gitignore in your project root
+touch .gitignore
+```
+
+Add this to your `.gitignore`:
+```
+# Dependencies
+node_modules/
+venv/
+__pycache__/
+
+# Environment variables
+.env
+*.env
+
+# IDE
+.vscode/
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+
+# Build files
+dist/
+build/

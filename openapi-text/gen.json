@@ -1,0 +1,225 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "description": "Official watsonx.ai generation API endpoint from IBM GitHub. Complete spec for text generation with foundation models.",
+    "title": "watsonx.ai Text Generation API",
+    "version": "1.1.0"
+  },
+  "servers": [
+    {
+      "url": "https://au-syd.ml.cloud.ibm.com",
+      "description": "watsonx.ai Australia (Sydney) region"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "oauth2": {
+        "type": "oauth2",
+        "flows": {
+          "x-apikey": {
+            "tokenUrl": "https://iam.cloud.ibm.com/identity/token",
+            "grantType": "urn:ibm:params:oauth:grant-type:apikey",
+            "secretKeys": ["apikey"],
+            "paramKeys": [],
+            "scopes": {}
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "oauth2": []
+    }
+  ],
+  "paths": {
+    "/ml/v1-beta/generation/text": {
+      "post": {
+        "description": "Generate text using watsonx.ai foundation models",
+        "operationId": "generateText",
+        "parameters": [
+          {
+            "name": "version",
+            "in": "query",
+            "description": "Release date of the version of the API you want to use. Specify dates in YYYY-MM-DD format. The current version is `2023-05-29`.",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "2023-05-29"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["model_id", "input", "project_id"],
+                "properties": {
+                  "model_id": {
+                    "type": "string",
+                    "description": "The ID of the model to be used for this request. Please refer to the list of models at https://dataplatform.cloud.ibm.com/docs/content/wsj/analyze-data/fm-prompt-lab.html?context=wx",
+                    "example": "ibm/granite-3-8b-instruct"
+                  },
+                  "input": {
+                    "type": "string",
+                    "description": "The input is the prompt to generate completions. Note: The method tokenizes the input internally. It is recommended not to leave any trailing spaces.",
+                    "example": "Analyze this resume for CPL evaluation..."
+                  },
+                  "project_id": {
+                    "type": "string",
+                    "description": "ID for the associated watsonx project.",
+                    "minLength": 1,
+                    "maxLength": 255,
+                    "pattern": "^[a-zA-Z0-9_-]*$",
+                    "example": "caf544a2-807e-465f-b275-81076b99a38a"
+                  },
+                  "parameters": {
+                    "type": "object",
+                    "description": "Model parameters for text generation",
+                    "properties": {
+                      "decoding_method": {
+                        "type": "string",
+                        "description": "The decoding method to use. Options: 'greedy' or 'sample'.",
+                        "enum": ["greedy", "sample"],
+                        "example": "greedy"
+                      },
+                      "temperature": {
+                        "type": "number",
+                        "description": "The value used to alter the next token probability distribution. Range: 0.00 to 2.00. A value of 0.00 makes it deterministic.",
+                        "minimum": 0.0,
+                        "maximum": 2.0,
+                        "example": 0.7
+                      },
+                      "max_new_tokens": {
+                        "type": "integer",
+                        "description": "The maximum number of new tokens to be generated.",
+                        "minimum": 1,
+                        "maximum": 4096,
+                        "example": 200
+                      },
+                      "min_new_tokens": {
+                        "type": "integer",
+                        "description": "The minimum number of new tokens to be generated.",
+                        "minimum": 0,
+                        "example": 0
+                      },
+                      "repetition_penalty": {
+                        "type": "number",
+                        "description": "The penalty for penalizing tokens that have already been generated or belong to the context. Range: 1.00 to 2.00.",
+                        "minimum": 1.0,
+                        "maximum": 2.0,
+                        "example": 1.0
+                      },
+                      "stop_sequences": {
+                        "type": "array",
+                        "description": "Stop sequences to end text generation.",
+                        "items": {
+                          "type": "string"
+                        },
+                        "maxItems": 6,
+                        "example": ["\n\n"]
+                      },
+                      "top_k": {
+                        "type": "integer",
+                        "description": "The number of highest probability vocabulary tokens to keep for top-k-filtering.",
+                        "minimum": 1,
+                        "maximum": 100,
+                        "example": 50
+                      },
+                      "top_p": {
+                        "type": "number",
+                        "description": "Similar to top_k but selects the top tokens whose cumulative probability exceeds this threshold.",
+                        "minimum": 0.0,
+                        "maximum": 1.0,
+                        "example": 1.0
+                      },
+                      "random_seed": {
+                        "type": "integer",
+                        "description": "Random seed for text generation to ensure reproducibility.",
+                        "minimum": 1,
+                        "example": 12345
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful generation response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "model_id": {
+                      "type": "string",
+                      "description": "The ID of the model used for generation"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "description": "The timestamp of generation",
+                      "example": "2023-05-29T12:34:56.789Z"
+                    },
+                    "results": {
+                      "type": "array",
+                      "description": "Array of generation results",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "generated_text": {
+                            "type": "string",
+                            "description": "The generated text response"
+                          },
+                          "generated_token_count": {
+                            "type": "integer",
+                            "description": "Number of tokens in the generated output"
+                          },
+                          "input_token_count": {
+                            "type": "integer",
+                            "description": "Number of tokens in the input prompt"
+                          },
+                          "stop_reason": {
+                            "type": "string",
+                            "description": "Reason why generation stopped",
+                            "enum": ["NOT_FINISHED", "MAX_TOKENS", "EOS_TOKEN", "CANCELLED", "TIME_LIMIT", "STOP_SEQUENCE", "TOKEN_LIMIT", "ERROR"]
+                          }
+                        }
+                      }
+                    },
+                    "system": {
+                      "type": "object",
+                      "description": "System metadata"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request - invalid parameters or malformed input"
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing authentication token"
+          },
+          "403": {
+            "description": "Forbidden - insufficient permissions for the requested resource"
+          },
+          "404": {
+            "description": "Not found - model or project not found"
+          },
+          "429": {
+            "description": "Too many requests - rate limit exceeded"
+          },
+          "500": {
+            "description": "Internal server error"
+          }
+        }
+      }
+    }
+  }
+}

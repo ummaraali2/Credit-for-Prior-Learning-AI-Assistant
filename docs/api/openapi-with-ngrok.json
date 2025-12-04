@@ -1,0 +1,123 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+      "title": "CPL Student Query API",
+      "description": "Returns 4 fields: student_name, request_type, target_course, document_id",
+      "version": "1.0.0"
+    },
+    "servers": [
+      {
+        "url": "https://edc93af5c0a9.ngrok-free.app",
+        "description": "ngrok tunnel - UPDATE THIS with your actual ngrok URL!"
+      }
+    ],
+    "paths": {
+      "/query-student": {
+        "post": {
+          "operationId": "queryStudent",
+          "summary": "Get student metadata by NUID",
+          "description": "Retrieves student info from Iceberg table - returns 4 fields only",
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["nuid"],
+                  "properties": {
+                    "nuid": {
+                      "type": "string",
+                      "description": "Student NUID",
+                      "example": "1"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Student found successfully",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "student_name": {
+                        "type": "string",
+                        "description": "Student's full name"
+                      },
+                      "request_type": {
+                        "type": "string",
+                        "description": "Type of CPL request",
+                        "enum": [
+                          "Experience-based waiver",
+                          "Prior coursework waiver",
+                          "Credit transfer"
+                        ]
+                      },
+                      "target_course": {
+                        "type": "string",
+                        "description": "Course code"
+                      },
+                      "document_id": {
+                        "type": "string",
+                        "description": "Document ID to query in Milvus"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "404": {
+              "description": "Student not found",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "error": {
+                        "type": "string"
+                      },
+                      "nuid": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "500": {
+              "description": "Server error"
+            }
+          }
+        }
+      },
+      "/health": {
+        "get": {
+          "operationId": "healthCheck",
+          "summary": "Check service health",
+          "responses": {
+            "200": {
+              "description": "Service is healthy",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "status": {
+                        "type": "string"
+                      },
+                      "service": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }

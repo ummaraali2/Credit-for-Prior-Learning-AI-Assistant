@@ -1,0 +1,717 @@
+/* Reset and Base Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Lato', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background-color: #ffffff;
+    color: #333333;
+    line-height: 1.6;
+}
+
+/* Top Bar */
+.top-bar {
+    background-color: #000000;
+    padding: 8px 0;
+    border-bottom: 1px solid #333333;
+}
+
+.top-bar-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+.login-btn {
+    background-color: transparent;
+    color: #ffffff;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    padding: 8px 16px;
+    border: 1px solid #ffffff;
+    border-radius: 0;
+    transition: all 0.2s ease;
+    font-family: 'Lato', sans-serif;
+}
+
+.login-btn:hover {
+    background-color: #ffffff;
+    color: #000000;
+}
+
+/* Main Header */
+.header {
+    background-color: #000000;
+    padding: 0;
+}
+
+.nav-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 24px;
+    height: 80px;
+}
+
+.logo-section {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.logo-container {
+    background-color: #cc0000;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    text-decoration: none;
+    transition: background-color 0.2s ease;
+}
+
+.logo-container:hover {
+    background-color: #aa0000;
+}
+
+.cps-link {
+    text-decoration: none;
+    color: inherit;
+    transition: color 0.2s ease;
+}
+
+.cps-link:hover {
+    color: #cccccc;
+}
+
+.cps-link h2 {
+    font-size: 16px;
+    font-weight: 300;
+    line-height: 1.2;
+    margin: 0;
+    font-family: 'Lato', sans-serif;
+}
+
+.nu-logo {
+    width: 32px;
+    height: 32px;
+    filter: brightness(0) invert(1);
+}
+
+.university-text {
+    color: #ffffff;
+}
+
+.university-text h1 {
+    font-size: 18px;
+    font-weight: 400;
+    line-height: 1.2;
+    margin: 0;
+    font-family: 'Lato', sans-serif;
+}
+
+.university-text h2 {
+    font-size: 16px;
+    font-weight: 300;
+    line-height: 1.2;
+    margin: 0;
+    font-family: 'Lato', sans-serif;
+}
+
+.nav-menu {
+    display: flex;
+    align-items: center;
+}
+
+.nav-item {
+    color: #ffffff;
+    text-decoration: none;
+    font-size: 16px;
+    font-weight: 400;
+    transition: color 0.2s ease;
+    font-family: 'Lato', sans-serif;
+    padding: 0 16px;
+}
+
+.nav-item:hover {
+    color: #cccccc;
+}
+
+/* Hero Section */
+.hero {
+    background-color: #000000;
+    background-image: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7));
+    min-height: 400px;
+    display: flex;
+    align-items: center;
+    position: relative;
+}
+
+.hero-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 24px;
+    width: 100%;
+}
+
+.hero-content {
+    max-width: 600px;
+    color: #ffffff;
+}
+
+.hero-title {
+    font-size: 48px;
+    font-weight: 700;
+    line-height: 1.1;
+    margin-bottom: 24px;
+    font-family: 'Lato', sans-serif;
+    color: #ffffff;
+}
+
+.hero-subtitle {
+    font-size: 18px;
+    font-weight: 300;
+    line-height: 1.4;
+    color: #ffffff;
+    font-family: 'Lato', sans-serif;
+}
+
+/* Main Content */
+.main-content {
+    background-color: #ffffff;
+    padding: 60px 0;
+}
+
+.content-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 0 24px;
+}
+
+.cpl-portal-section {
+    text-align: center;
+    margin-bottom: 48px;
+}
+
+.portal-title {
+    font-size: 48px;
+    font-weight: 700;
+    color: #333333;
+    margin-bottom: 12px;
+    letter-spacing: -1px;
+    font-family: 'Lato', sans-serif;
+}
+
+.portal-subtitle {
+    font-size: 20px;
+    color: #666666;
+    font-weight: 300;
+    text-transform: lowercase;
+    margin-bottom: 40px;
+    font-family: 'Lato', sans-serif;
+}
+
+.assistant-area {
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    min-height: 500px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666666;
+    font-size: 18px;
+    font-family: 'Lato', sans-serif;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .nav-container,
+    .top-bar-container,
+    .hero-container,
+    .content-container {
+        max-width: 100%;
+        padding: 0 24px;
+    }
+}
+
+@media (max-width: 768px) {
+    .top-bar {
+        display: none;
+    }
+
+    .nav-container {
+        padding: 0 16px;
+        height: 70px;
+        flex-wrap: wrap;
+    }
+
+    .logo-container {
+        width: 40px;
+        height: 40px;
+    }
+
+    .nu-logo {
+        width: 28px;
+        height: 28px;
+    }
+
+    .university-text h1 {
+        font-size: 16px;
+    }
+
+    .university-text h2 {
+        font-size: 14px;
+    }
+
+    .nav-item {
+        font-size: 14px;
+        padding: 0 8px;
+    }
+
+    .hero {
+        min-height: 300px;
+        padding: 40px 0;
+    }
+
+    .hero-container {
+        padding: 0 16px;
+    }
+
+    .hero-title {
+        font-size: 36px;
+        margin-bottom: 20px;
+    }
+
+    .hero-subtitle {
+        font-size: 16px;
+    }
+
+    .content-container {
+        padding: 0 16px;
+    }
+
+    .portal-title {
+        font-size: 36px;
+    }
+
+    .portal-subtitle {
+        font-size: 18px;
+    }
+
+    .assistant-area {
+        min-height: 400px;
+    }
+}
+
+@media (max-width: 480px) {
+    .logo-section {
+        gap: 12px;
+    }
+
+    .university-text h1 {
+        font-size: 14px;
+    }
+
+    .university-text h2 {
+        font-size: 12px;
+    }
+
+    .hero-title {
+        font-size: 28px;
+    }
+
+    .hero-subtitle {
+        font-size: 14px;
+    }
+
+    .portal-title {
+        font-size: 28px;
+    }
+
+    .portal-subtitle {
+        font-size: 16px;
+    }
+}
+/* Add these styles to your existing styles.css file */
+
+/* File Upload Drag and Drop Styles */
+.drag-over {
+    position: relative;
+}
+
+.drag-over::before {
+    content: "📁 Drop your document here to upload for course evaluation";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 76, 151, 0.9);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: 600;
+    z-index: 10000;
+    border: 4px dashed white;
+    box-sizing: border-box;
+    text-align: center;
+    padding: 20px;
+}
+
+/* File Upload Button Styles (if you want to add a manual upload button) */
+.upload-btn {
+    background: #004c97;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin: 10px 0;
+}
+
+.upload-btn:hover {
+    background: #003d7a;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 76, 151, 0.3);
+}
+
+.upload-btn:active {
+    transform: translateY(0);
+}
+
+/* File Upload Zone Styles (if you want a dedicated upload area) */
+.upload-zone {
+    border: 2px dashed #004c97;
+    border-radius: 8px;
+    padding: 40px 20px;
+    text-align: center;
+    background: #f8f9fa;
+    margin: 20px 0;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.upload-zone:hover {
+    border-color: #003d7a;
+    background: #e9ecef;
+}
+
+.upload-zone.dragover {
+    border-color: #28a745;
+    background: #d4edda;
+    border-style: solid;
+}
+
+.upload-zone-content {
+    color: #004c97;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.upload-zone-subtitle {
+    color: #6c757d;
+    font-size: 14px;
+    margin-top: 8px;
+}
+
+/* File Upload Instructions */
+.upload-instructions {
+    background: #e9f4ff;
+    border: 1px solid #004c97;
+    border-radius: 6px;
+    padding: 16px;
+    margin: 16px 0;
+    font-size: 14px;
+    color: #004c97;
+}
+
+.upload-instructions h4 {
+    margin: 0 0 8px 0;
+    color: #004c97;
+    font-size: 16px;
+}
+
+.upload-instructions ul {
+    margin: 8px 0 0 0;
+    padding-left: 20px;
+}
+
+.upload-instructions li {
+    margin: 4px 0;
+}
+
+/* Upload Progress Indicator */
+.upload-progress {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin: 12px 0;
+    display: none;
+}
+
+.upload-progress.active {
+    display: block;
+}
+
+.upload-progress-bar {
+    width: 100%;
+    height: 6px;
+    background: #e9ecef;
+    border-radius: 3px;
+    overflow: hidden;
+    margin: 8px 0;
+}
+
+.upload-progress-fill {
+    height: 100%;
+    background: #28a745;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+    animation: progress-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes progress-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+}
+
+/* File Type Icons (optional enhancement) */
+.file-icon {
+    display: inline-block;
+    width: 24px;
+    height: 24px;
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+.file-icon.pdf::before { content: "📄"; }
+.file-icon.doc::before { content: "📝"; }
+.file-icon.image::before { content: "🖼️"; }
+.file-icon.certificate::before { content: "🏆"; }
+
+/* Error and Success Messages */
+.upload-message {
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin: 12px 0;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.upload-message.success {
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.upload-message.error {
+    background: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.upload-message.info {
+    background: #d1ecf1;
+    border: 1px solid #bee5eb;
+    color: #0c5460;
+}
+
+/* Responsive Design for Upload Elements */
+@media (max-width: 768px) {
+    .drag-over::before {
+        font-size: 18px;
+        padding: 40px 20px;
+    }
+    
+    .upload-zone {
+        padding: 30px 15px;
+    }
+    
+    .upload-zone-content {
+        font-size: 14px;
+    }
+    
+    .upload-btn {
+        width: 100%;
+        padding: 14px 20px;
+    }
+}
+
+/* Integration with existing CPL Portal styles */
+.cpl-portal-section .upload-zone {
+    border-color: var(--nu-red, #004c97);
+}
+
+.cpl-portal-section .upload-btn {
+    background: var(--nu-red, #004c97);
+}
+
+.cpl-portal-section .upload-btn:hover {
+    background: var(--nu-red-dark, #003d7a);
+}/* Enhanced File Upload Styles - Add to your styles.css */
+
+/* File Preview Container */
+.file-preview-container {
+    background: #f4f4f4;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 12px;
+    margin: 10px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-family: 'Lato', sans-serif;
+}
+
+.file-preview-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 1;
+}
+
+.file-preview-icon {
+    font-size: 32px;
+    line-height: 1;
+}
+
+.file-preview-details {
+    flex: 1;
+}
+
+.file-preview-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 4px;
+    word-break: break-word;
+}
+
+.file-preview-size {
+    font-size: 12px;
+    color: #666;
+}
+
+.file-preview-remove {
+    background: #da1e28;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 16px;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.file-preview-remove:hover {
+    background: #ba1b23;
+    transform: scale(1.1);
+}
+
+/* Upload Status Messages */
+.upload-status {
+    padding: 10px 14px;
+    border-radius: 6px;
+    margin: 10px 0;
+    font-size: 13px;
+    font-family: 'Lato', sans-serif;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.upload-status.uploading {
+    background: #e9f4ff;
+    border: 1px solid #0f62fe;
+    color: #0f62fe;
+}
+
+.upload-status.success {
+    background: #d4edda;
+    border: 1px solid #24a148;
+    color: #24a148;
+}
+
+.upload-status.error {
+    background: #f8d7da;
+    border: 1px solid #da1e28;
+    color: #da1e28;
+}
+
+/* Enhanced Upload Button */
+.custom-upload-area {
+    border: 2px dashed #ccc;
+    border-radius: 8px;
+    padding: 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    background: #fafafa;
+}
+
+.custom-upload-area:hover {
+    border-color: #cc0000;
+    background: #fff;
+}
+
+.custom-upload-area.drag-over {
+    border-color: #24a148;
+    background: #f0f9f4;
+}
+
+.upload-area-text {
+    color: #666;
+    font-size: 14px;
+    margin-top: 8px;
+}
+
+.upload-area-icon {
+    font-size: 48px;
+    color: #999;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .file-preview-container {
+        padding: 10px;
+    }
+    
+    .file-preview-icon {
+        font-size: 24px;
+    }
+    
+    .file-preview-name {
+        font-size: 13px;
+    }
+    
+    .file-preview-remove {
+        width: 24px;
+        height: 24px;
+        font-size: 14px;
+    }
+}

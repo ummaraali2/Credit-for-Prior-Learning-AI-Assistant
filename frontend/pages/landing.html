@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CPL Portal - Northeastern University</title>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        /* Portal Selection Cards */
+        .portal-selection {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 80px 24px;
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 40px;
+        }
+
+        .portal-card {
+            background: white;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 48px 40px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            text-decoration: none;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+        }
+
+        .portal-card:hover {
+            border-color: #cc0000;
+            transform: translateY(-8px);
+            box-shadow: 0 12px 32px rgba(204,0,0,0.15);
+        }
+
+        .portal-icon {
+            width: 120px;
+            height: 120px;
+            background: #cc0000;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 32px;
+            transition: all 0.3s ease;
+        }
+
+        .portal-card:hover .portal-icon {
+            background: #aa0000;
+            transform: scale(1.1);
+        }
+
+        .portal-icon svg {
+            width: 64px;
+            height: 64px;
+            fill: white;
+        }
+
+        .portal-title {
+            font-size: 32px;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 16px;
+            font-family: 'Lato', sans-serif;
+        }
+
+        .portal-description {
+            font-size: 16px;
+            color: #666;
+            line-height: 1.6;
+            font-family: 'Lato', sans-serif;
+            font-weight: 400;
+        }
+
+        .hero-centered {
+            text-align: center;
+        }
+
+        .hero-centered .hero-content {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+
+        @media (max-width: 768px) {
+            .portal-selection {
+                grid-template-columns: 1fr;
+                padding: 40px 16px;
+                gap: 24px;
+            }
+
+            .portal-card {
+                padding: 40px 32px;
+            }
+
+            .portal-icon {
+                width: 100px;
+                height: 100px;
+                margin-bottom: 24px;
+            }
+
+            .portal-icon svg {
+                width: 52px;
+                height: 52px;
+            }
+
+            .portal-title {
+                font-size: 28px;
+            }
+
+            .portal-description {
+                font-size: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <div class="top-bar">
+        <div class="top-bar-container">
+            <a href="#" class="login-btn">LOGIN</a>
+        </div>
+    </div>
+
+    <!-- Main Header -->
+    <header class="header">
+        <nav class="nav-container">
+            <div class="logo-section">
+                <a href="landing.html" class="logo-container">
+                    <img src="logo.png" alt="Northeastern University Logo" class="nu-logo">
+                </a>
+                <div class="university-text">
+                    <h1>Northeastern University</h1>
+                    <a href="https://cps.northeastern.edu/" target="_blank" class="cps-link">
+                        <h2>College of Professional Studies</h2>
+                    </a>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero hero-centered">
+        <div class="hero-container">
+            <div class="hero-content">
+                <h1 class="hero-title">Credit for Prior Learning</h1>
+                <p class="hero-subtitle">Transform your professional experience and certifications into academic credits. Choose your portal to get started.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Portal Selection -->
+    <main class="main-content">
+        <div class="portal-selection">
+            <!-- Student Portal Card -->
+            <a href="index.html" class="portal-card">
+                <div class="portal-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/>
+                    </svg>
+                </div>
+                <h2 class="portal-title">Student CPL Portal</h2>
+                <p class="portal-description">
+                    Submit your documents for course waivers, work experience evaluations, and credit transfers. 
+                    Upload transcripts, certificates, and professional documentation for review.
+                </p>
+            </a>
+
+            <!-- Advisor Portal Card -->
+            <a href="faculty.html" class="portal-card">
+                <div class="portal-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+                        <path d="M12 2L1 7v2l11 5.5L23 9V7M12 6.5L19.74 10 12 13.5 4.26 10M1 11v2l11 5.5L23 13v-2l-11 5.5z"/>
+                    </svg>
+                </div>
+                <h2 class="portal-title">Advisor CPL Portal</h2>
+                <p class="portal-description">
+                    Review and evaluate student CPL requests. Search through submitted documents, 
+                    assess prior learning evidence, and make credit recommendations.
+                </p>
+            </a>
+        </div>
+    </main>
+</body>
+</html>

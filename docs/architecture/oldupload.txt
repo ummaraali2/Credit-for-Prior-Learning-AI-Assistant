@@ -1,0 +1,719 @@
+"""
+watson_upload.py - Updated for v3 with document_type field
+
+KEY CHANGES:
+- Sets document_type based on file/request type
+- Student documents have document_type = "student_syllabus" | "transcript" | "resume"
+- NU documents have document_type = "nu_syllabus" (uploaded separately)
+"""
+
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import os
+from dotenv import load_dotenv
+from ibm_watsonx_ai import APIClient, Credentials
+from ibm_watsonx_ai.foundation_models.embeddings import Embeddings
+from ibm_watsonx_ai.foundation_models.extensions.rag.vector_stores import MilvusVectorStore
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_core.documents import Document
+import PyPDF2
+import docx
+import io
+import uuid
+from datetime import datetime
+from iceberg_handler import get_iceberg_handler
+
+load_dotenv()
+app = Flask(__name__)
+CORS(app)
+
+# ==================== INITIALIZE SERVICES ====================
+
+credentials = Credentials(
+    api_key=os.getenv('WATSONX_AI_APIKEY'),
+    url=os.getenv('WATSONX_AI_SERVICE_URL')
+)
+api_client = APIClient(credentials)
+api_client.set.default_project(os.getenv('WATSONX_AI_PROJECT_ID'))
+
+embedding = Embeddings(
+    model_id='ibm/slate-125m-english-rtrvr-v2',
+    api_client=api_client
+)
+
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=2000,
+    chunk_overlap=200,
+    length_function=len,
+    is_separator_regex=False,
+)
+
+# Use NEW collection with document_type support
+vector_store = MilvusVectorStore(
+    api_client=api_client,
+    connection_id=os.getenv('MILVUS_CONNECTION_ID'),
+    collection_name='cpl_documents_v3',  # ← NEW COLLECTION
+    embedding_function=embedding
+)
+
+iceberg = get_iceberg_handler()
+
+print("✅ watsonx.ai services initialized")
+print(f"   Model: ibm/slate-125m-english-rtrvr-v2")
+print(f"   Milvus Collection: cpl_documents_v3")
+print(f"   Iceberg Table: cpl_requests")
+print(f"   Supports: Student docs + NU reference docs")
+
+# ==================== HELPER FUNCTIONS ====================
+
+def extract_text(file_bytes, filename):
+    """Extract text from PDF/DOCX/TXT"""
+    try:
+        if filename.endswith('.pdf'):
+            pdf_reader = PyPDF2.PdfReader(io.BytesIO(file_bytes))
+            text = ""
+            for page in pdf_reader.pages:
+                text += page.extract_text() + "\n"
+            return text.strip()
+        
+        elif filename.endswith('.docx'):
+            doc = docx.Document(io.BytesIO(file_bytes))
+            text = "\n".join([para.text for para in doc.paragraphs])
+            return text.strip()
+        
+        elif filename.endswith('.txt'):
+            return file_bytes.decode('utf-8')
+        
+        else:
+            raise ValueError("Unsupported file type")
+    except Exception as e:
+        raise ValueError(f"Text extraction failed: {str(e)}")
+
+
+def determine_document_type(filename, request_type):
+    """
+    Determine document_type based on filename and request_type
+    
+    Returns: "student_syllabus" | "transcript" | "resume"
+    """
+    filename_lower = filename.lower()
+    
+    # Check filename patterns
+    if 'transcript' in filename_lower:
+        return 'transcript'
+    elif 'resume' in filename_lower or 'cv' in filename_lower:
+        return 'resume'
+    elif 'syllabus' in filename_lower:
+        return 'student_syllabus'
+    
+    # Fallback: use request type
+    if request_type == 'prior_coursework':
+        return 'student_syllabus'
+    elif request_type == 'credit_transfer':
+        return 'transcript'
+    elif request_type == 'experience_based':
+        return 'resume'
+    
+    # Default
+    return 'student_syllabus'
+
+
+# ==================== API ENDPOINTS ====================
+
+@app.route('/api/upload-to-watsonx', methods=['POST'])
+def upload_to_watsonx():
+    """
+    Upload student document to BOTH Milvus AND Iceberg
+    
+    NEW: Sets document_type to distinguish from NU reference docs
+    """
+    try:
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'error': 'No file provided'}), 400
+        
+        file = request.files['file']
+        filename = file.filename
+        file_bytes = file.read()
+        
+        # CAPTURE STUDENT CONTEXT
+        student_name = request.form.get('studentName', 'Unknown')
+        nuid = request.form.get('nuid', 'N/A')
+        request_type = request.form.get('requestType', 'Not Specified')
+        target_course = request.form.get('targetCourse', 'Not Specified')
+        
+        # NEW: Determine document type
+        document_type = determine_document_type(filename, request_type)
+        
+        print(f"\n📥 ========== PROCESSING {filename} ==========")
+        print(f"   👤 Student: {student_name} ({nuid})")
+        print(f"   📋 Request: {request_type}")
+        print(f"   🎯 Course: {target_course}")
+        print(f"   📄 Document Type: {document_type}")
+        
+        document_id = str(uuid.uuid4())
+        
+        # ==================== PART 1: MILVUS ====================
+        
+        print("\n   📦 PART 1: Storing in MILVUS...")
+        
+        # Extract text
+        print("   📄 STEP 1: Extracting text...")
+        text_content = extract_text(file_bytes, filename)
+        print(f"      ✅ Extracted {len(text_content)} characters")
+        
+        # Chunk document
+        print(f"   ✂️  STEP 2: Chunking...")
+        doc = Document(
+            page_content=text_content,
+            metadata={'document_name': filename}
+        )
+        chunks = text_splitter.split_documents([doc])
+        print(f"      ✅ Created {len(chunks)} chunks")
+        
+        # Prepare documents with FULL metadata
+        print("   📄 STEP 3: Preparing documents...")
+        documents = []
+        char_position = 0
+        
+        for i, chunk in enumerate(chunks):
+            chunk_text = chunk.page_content
+            pk = f"{document_id}_{i}"
+            
+            # ALL 13 fields from schema
+            documents.append({
+                'content': chunk_text,
+                'metadata': {
+                    'pk': pk,
+                    'document_id': document_id,
+                    'document_name': filename,
+                    'document_type': document_type,  # ← NEW: Marks as student doc
+                    'page': i + 1,
+                    'start_index': char_position,
+                    'sequence_number': i,
+                    # Student context (FILLED for student docs)
+                    'student_name': student_name,
+                    'nuid': nuid,
+                    'target_course': target_course,
+                    'request_type': request_type
+                }
+            })
+            
+            char_position += len(chunk_text)
+        
+        # Upload to Milvus
+        print(f"   🚀 STEP 4: Uploading to Milvus...")
+        result = vector_store.add_documents(documents)
+        print(f"      ✅ Stored {len(chunks)} chunks")
+        print(f"      📄 Type: {document_type}")
+        print(f"      👤 Student: {student_name} ({nuid})")
+        
+        # ==================== PART 2: ICEBERG ====================
+        
+        print("\n   📊 PART 2: Storing in ICEBERG...")
+        
+        request_id = iceberg.insert_request({
+            'document_id': document_id,
+            'student_name': student_name,
+            'nuid': nuid,
+            'request_type': request_type,
+            'target_course': target_course,
+            'document_name': filename
+        })
+        
+        if request_id:
+            print(f"      ✅ Stored metadata in Iceberg")
+            print(f"      📋 Request ID: {request_id}")
+        
+        # ==================== COMPLETE ====================
+        
+        print(f"\n   ✅ UPLOAD COMPLETE!")
+        print(f"   📊 Document ID: {document_id}")
+        print(f"   📄 Type: {document_type} (student document)")
+        print(f"   📦 Milvus: {len(chunks)} chunks")
+        print(f"   📋 Iceberg: 1 record")
+        print(f"==========================================\n")
+        
+        return jsonify({
+            'success': True,
+            'document_id': document_id,
+            'request_id': request_id,
+            'filename': filename,
+            'document_type': document_type,  # Return to frontend
+            'student_name': student_name,
+            'nuid': nuid,
+            'request_type': request_type,
+            'target_course': target_course,
+            'chunks_created': len(chunks),
+            'storage': {
+                'milvus': f'{len(chunks)} chunks (type: {document_type})',
+                'iceberg': 'Student metadata stored'
+            }
+        })
+        
+    except Exception as e:
+        print(f"\n❌ ERROR: {str(e)}\n")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/get-requests', methods=['GET'])
+def get_requests():
+    """Get all CPL requests FROM ICEBERG"""
+    try:
+        requests = iceberg.get_all_requests()
+        return jsonify({
+            'success': True,
+            'requests': requests,
+            'count': len(requests),
+            'source': 'iceberg'
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/update-status', methods=['PUT'])
+def update_status():
+    """Update request status in Iceberg"""
+    try:
+        data = request.json
+        success = iceberg.update_status(
+            request_id=data.get('requestId'),
+            status=data.get('status'),
+            credits=data.get('credits'),
+            notes=data.get('notes', ''),
+            updated_by=data.get('updatedBy', 'Advisor')
+        )
+        
+        if success:
+            return jsonify({'success': True})
+        else:
+            return jsonify({'success': False}), 500
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/health', methods=['GET'])
+def health():
+    """Health check"""
+    return jsonify({
+        'status': 'OK',
+        'service': 'watsonx.ai Upload Service v3',
+        'configuration': {
+            'milvus_collection': 'cpl_documents_v3',
+            'document_types': [
+                'nu_syllabus (NU reference)',
+                'student_syllabus',
+                'transcript',
+                'resume'
+            ]
+        }
+    })
+
+
+@app.route('/', methods=['GET'])
+def home():
+    """API info"""
+    return jsonify({
+        'service': 'watsonx.ai Upload Service',
+        'version': '3.0 - Document Type Support',
+        'features': {
+            'student_uploads': 'Watson Assistant → document_type auto-detected',
+            'nu_syllabi': 'upload_nu_syllabi.py → document_type=nu_syllabus',
+            'filtering': 'Can filter by document_type, nuid, course'
+        }
+    })
+
+
+# ==================== START SERVER ====================
+
+if __name__ == '__main__':
+    print("\n🚀 ========== STARTING SERVER ==========")
+    print(f"Service: watsonx.ai Upload Service v3.0")
+    print(f"Collection: cpl_documents_v3")
+    print(f"")
+    print(f"📄 Document Types:")
+    print(f"   • student_syllabus - Student syllabi")
+    print(f"   • transcript - Student transcripts")
+    print(f"   • resume - Student resumes")
+    print(f"   • nu_syllabus - NU reference (via upload_nu_syllabi.py)")
+    print("======================================\n")
+    app.run(host='0.0.0.0', port=5000, debug=True)
+
+    
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import os
+from dotenv import load_dotenv
+from ibm_watsonx_ai import APIClient, Credentials
+from ibm_watsonx_ai.foundation_models.embeddings import Embeddings
+from ibm_watsonx_ai.foundation_models.extensions.rag.vector_stores import MilvusVectorStore
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_core.documents import Document
+import PyPDF2
+import docx
+import io
+import uuid
+from datetime import datetime
+from iceberg_handler import get_iceberg_handler  # NEW
+
+load_dotenv()
+app = Flask(__name__)
+CORS(app)
+
+# ==================== INITIALIZE SERVICES ====================
+
+# Initialize watsonx.ai
+credentials = Credentials(
+    api_key=os.getenv('WATSONX_AI_APIKEY'),
+    url=os.getenv('WATSONX_AI_SERVICE_URL')
+)
+api_client = APIClient(credentials)
+api_client.set.default_project(os.getenv('WATSONX_AI_PROJECT_ID'))
+
+# Initialize Embeddings
+embedding = Embeddings(
+    model_id='ibm/slate-125m-english-rtrvr-v2',
+    api_client=api_client
+)
+
+# Initialize Text Splitter
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=2000,
+    chunk_overlap=200,
+    length_function=len,
+    is_separator_regex=False,
+)
+
+# Initialize Milvus Vector Store
+vector_store = MilvusVectorStore(
+    api_client=api_client,
+    connection_id=os.getenv('MILVUS_CONNECTION_ID'),
+    collection_name=os.getenv('MILVUS_COLLECTION_NAME'),
+    embedding_function=embedding
+)
+
+# Initialize Iceberg Handler (NEW)
+iceberg = get_iceberg_handler()
+
+print("✅ watsonx.ai services initialized")
+print(f"   Model: ibm/slate-125m-english-rtrvr-v2")
+print(f"   Milvus Collection: {os.getenv('MILVUS_COLLECTION_NAME')}")
+print(f"   Iceberg Table: cpl_requests (for student metadata)")
+print(f"   Chunk size: 2000, Overlap: 200")
+
+# ==================== HELPER FUNCTIONS ====================
+
+def extract_text(file_bytes, filename):
+    """Extract text from PDF/DOCX/TXT"""
+    try:
+        if filename.endswith('.pdf'):
+            pdf_reader = PyPDF2.PdfReader(io.BytesIO(file_bytes))
+            text = ""
+            for page in pdf_reader.pages:
+                text += page.extract_text() + "\n"
+            return text.strip()
+        
+        elif filename.endswith('.docx'):
+            doc = docx.Document(io.BytesIO(file_bytes))
+            text = "\n".join([para.text for para in doc.paragraphs])
+            return text.strip()
+        
+        elif filename.endswith('.txt'):
+            return file_bytes.decode('utf-8')
+        
+        else:
+            raise ValueError("Unsupported file type")
+    except Exception as e:
+        raise ValueError(f"Text extraction failed: {str(e)}")
+
+# ==================== API ENDPOINTS ====================
+
+@app.route('/api/upload-to-watsonx', methods=['POST'])
+def upload_to_watsonx():
+    """
+    Upload document to BOTH Milvus AND Iceberg
+    Milvus: Document chunks + embeddings (for search)
+    Iceberg: Student metadata (for status management)
+    """
+    try:
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'error': 'No file provided'}), 400
+        
+        file = request.files['file']
+        filename = file.filename
+        file_bytes = file.read()
+        
+        # CAPTURE STUDENT CONTEXT
+        student_name = request.form.get('studentName', 'Unknown')
+        nuid = request.form.get('nuid', 'N/A')
+        request_type = request.form.get('requestType', 'Not Specified')
+        target_course = request.form.get('targetCourse', 'Not Specified')
+        
+        print(f"\n📥 ========== PROCESSING {filename} ==========")
+        print(f"   👤 Student: {student_name} ({nuid})")
+        print(f"   📋 Request: {request_type}")
+        print(f"   🎯 Course: {target_course}")
+        
+        # Generate unique document ID (used in BOTH Milvus AND Iceberg)
+        document_id = str(uuid.uuid4())
+        
+        # ==================== PART 1: MILVUS (Vector Search) ====================
+        
+        print("\n   📦 PART 1: Storing in MILVUS (for vector search)...")
+        
+        # Extract text
+        print("   📄 STEP 1: Extracting text...")
+        text_content = extract_text(file_bytes, filename)
+        print(f"      ✅ Extracted {len(text_content)} characters")
+        
+        # Chunk document
+        print(f"   ✂️  STEP 2: Chunking (size=2000, overlap=200)...")
+        doc = Document(
+            page_content=text_content,
+            metadata={'document_name': filename}
+        )
+        chunks = text_splitter.split_documents([doc])
+        print(f"      ✅ Created {len(chunks)} chunks")
+        
+        # Prepare documents for Milvus (WITHOUT student context - only technical fields)
+        print("   📄 STEP 3: Preparing documents for Milvus...")
+        documents = []
+        char_position = 0
+        
+        for i, chunk in enumerate(chunks):
+            chunk_text = chunk.page_content
+            pk = f"{document_id}_{i}"
+            
+            # ONLY include fields that exist in Milvus schema
+            documents.append({
+                'content': chunk_text,
+                'metadata': {
+                    'pk': pk,
+                    'document_id': document_id,
+                    'document_name': filename,
+                    'page': i + 1,
+                    'start_index': char_position,
+                    'sequence_number': i
+                }
+            })
+            
+            char_position += len(chunk_text)
+        
+        # Upload to Milvus
+        print(f"   🚀 STEP 4: Uploading to Milvus...")
+        result = vector_store.add_documents(documents)
+        print(f"      ✅ Stored {len(chunks)} chunks in Milvus (for search)")
+        
+        # ==================== PART 2: ICEBERG (Student Metadata) ====================
+        
+        print("\n   📊 PART 2: Storing in ICEBERG (for metadata)...")
+        
+        # Insert student metadata into Iceberg table
+        request_id = iceberg.insert_request({
+            'document_id': document_id,
+            'student_name': student_name,
+            'nuid': nuid,
+            'request_type': request_type,
+            'target_course': target_course,
+            'document_name': filename
+        })
+        
+        if request_id:
+            print(f"      ✅ Stored metadata in Iceberg table")
+            print(f"      📋 Request ID: {request_id}")
+        else:
+            print(f"      ⚠️  Iceberg insert failed (metadata not stored)")
+        
+        # ==================== COMPLETE ====================
+        
+        print(f"\n   ✅ UPLOAD COMPLETE!")
+        print(f"   📊 Document ID: {document_id}")
+        print(f"   📦 Milvus: {len(chunks)} chunks (for search)")
+        print(f"   📋 Iceberg: 1 record (for status)")
+        print(f"   👤 Student: {student_name} ({nuid})")
+        print(f"==========================================\n")
+        
+        return jsonify({
+            'success': True,
+            'document_id': document_id,
+            'request_id': request_id,
+            'filename': filename,
+            'student_name': student_name,
+            'nuid': nuid,
+            'request_type': request_type,
+            'target_course': target_course,
+            'chunks_created': len(chunks),
+            'characters_processed': len(text_content),
+            'storage': {
+                'milvus': f'{len(chunks)} chunks stored',
+                'iceberg': 'Student metadata stored'
+            },
+            'message': 'Document stored in Milvus (search) and Iceberg (metadata)!'
+        })
+        
+    except Exception as e:
+        print(f"\n❌ ========== ERROR ==========")
+        print(f"File: {filename if 'filename' in locals() else 'Unknown'}")
+        print(f"Error: {str(e)}")
+        print(f"=============================\n")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/get-requests', methods=['GET'])
+def get_requests():
+    """
+    Get all CPL requests FROM ICEBERG TABLE
+    (Student metadata stored here, not in Milvus)
+    """
+    try:
+        print("\n🔍 ========== QUERYING ICEBERG FOR REQUESTS ==========")
+        
+        # Query Iceberg table via Presto
+        requests = iceberg.get_all_requests()
+        
+        print(f"   ✅ Found {len(requests)} requests in Iceberg")
+        print(f"==========================================\n")
+        
+        return jsonify({
+            'success': True,
+            'requests': requests,
+            'count': len(requests),
+            'source': 'iceberg'
+        })
+        
+    except Exception as e:
+        print(f"\n❌ ========== ICEBERG QUERY ERROR ==========")
+        print(f"Error: {str(e)}")
+        print(f"=========================================\n")
+        import traceback
+        traceback.print_exc()
+        
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'requests': [],
+            'count': 0
+        }), 500
+
+@app.route('/api/update-status', methods=['PUT'])
+def update_status():
+    """Update request status in Iceberg table"""
+    try:
+        data = request.json
+        request_id = data.get('requestId')
+        status = data.get('status')
+        credits = data.get('credits')
+        notes = data.get('notes', '')
+        updated_by = data.get('updatedBy', 'Advisor')
+        
+        print(f"\n📝 Updating status: {request_id} → {status}")
+        
+        success = iceberg.update_status(
+            request_id=request_id,
+            status=status,
+            credits=credits,
+            notes=notes,
+            updated_by=updated_by
+        )
+        
+        if success:
+            return jsonify({
+                'success': True,
+                'message': 'Status updated in Iceberg table'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Update failed'
+            }), 500
+            
+    except Exception as e:
+        print(f"❌ Status update error: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/search', methods=['POST'])
+def search_documents():
+    """Search documents in Milvus vector store (semantic search)"""
+    try:
+        data = request.json
+        query = data.get('query')
+        top_k = data.get('topK', 5)
+        
+        if not query:
+            return jsonify({'success': False, 'error': 'Query is required'}), 400
+        
+        print(f"\n🔍 Semantic search in Milvus: {query}")
+        
+        # Search in Milvus
+        results = vector_store.search(query, k=top_k)
+        
+        print(f"   ✅ Found {len(results)} results")
+        
+        return jsonify({
+            'success': True,
+            'query': query,
+            'results': results,
+            'count': len(results)
+        })
+        
+    except Exception as e:
+        print(f"❌ Search error: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/health', methods=['GET'])
+def health():
+    """Health check endpoint"""
+    return jsonify({
+        'status': 'OK',
+        'service': 'watsonx.ai Upload Service',
+        'configuration': {
+            'embedding_model': 'ibm/slate-125m-english-rtrvr-v2',
+            'vector_dimensions': 768,
+            'chunk_size': 2000,
+            'chunk_overlap': 200,
+            'milvus_collection': os.getenv('MILVUS_COLLECTION_NAME'),
+            'iceberg_table': 'iceberg_data.cpl_schema.cpl_requests'
+        }
+    })
+
+@app.route('/', methods=['GET'])
+def home():
+    """API information endpoint"""
+    return jsonify({
+        'service': 'watsonx.ai Upload Service',
+        'status': 'Running',
+        'version': '3.0 - Milvus + Iceberg',
+        'endpoints': {
+            'health': 'GET /health',
+            'upload': 'POST /api/upload-to-watsonx',
+            'get_requests': 'GET /api/get-requests (from Iceberg)',
+            'update_status': 'PUT /api/update-status (to Iceberg)',
+            'search': 'POST /api/search (in Milvus)'
+        },
+        'architecture': {
+            'milvus': 'Document chunks + embeddings (search)',
+            'iceberg': 'Student metadata + status (queries)'
+        },
+        'message': 'Hybrid Milvus + Iceberg architecture active'
+    })
+
+# ==================== START SERVER ====================
+
+if __name__ == '__main__':
+    print("\n🚀 ========== STARTING SERVER ==========")
+    print(f"Service: watsonx.ai Upload Service v3.0")
+    print(f"Port: 5000")
+    print(f"")
+    print(f"📦 MILVUS:")
+    print(f"   Collection: {os.getenv('MILVUS_COLLECTION_NAME')}")
+    print(f"   Purpose: Document search (vectors)")
+    print(f"")
+    print(f"📊 ICEBERG:")
+    print(f"   Table: iceberg_data.cpl_schema.cpl_requests")
+    print(f"   Purpose: Student metadata + status")
+    print(f"")
+    print(f"🔗 Architecture: Hybrid (Milvus + Iceberg)")
+    print("======================================\n")
+    app.run(host='0.0.0.0', port=5000, debug=True)

@@ -1,0 +1,126 @@
+{
+    "openapi": "3.0.3",
+    "info": {
+      "title": "CPL Evaluator API",
+      "description": "Evaluates Credit for Prior Learning requests using RAG with Milvus",
+      "version": "1.0.0"
+    },
+    "servers": [
+      {
+        "url": "https://au-syd.ml.cloud.ibm.com"
+      }
+    ],
+    "security": [
+      {
+        "oauth2": []
+      }
+    ],
+    "paths": {
+      "/ml/v4/deployments/2c1bc890-8f86-4b65-a4c1-fff34634c87f/ai_service": {
+        "post": {
+          "summary": "Evaluate CPL request with AI analysis",
+          "description": "Analyzes student documents and provides CPL recommendation",
+          "operationId": "evaluateCPLRequest",
+          "parameters": [
+            {
+              "name": "version",
+              "in": "query",
+              "description": "API version",
+              "required": true,
+              "schema": {
+                "type": "string",
+                "default": "2021-05-01"
+              }
+            }
+          ],
+          "requestBody": {
+            "required": true,
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["messages"],
+                  "properties": {
+                    "messages": {
+                      "type": "array",
+                      "description": "Chat messages",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "role": {
+                            "type": "string",
+                            "enum": ["user", "assistant", "system"]
+                          },
+                          "content": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["role", "content"]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "responses": {
+            "200": {
+              "description": "Evaluation completed successfully",
+              "content": {
+                "application/json": {
+                  "schema": {
+                    "type": "object",
+                    "properties": {
+                      "choices": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "index": {
+                              "type": "integer"
+                            },
+                            "message": {
+                              "type": "object",
+                              "properties": {
+                                "role": {
+                                  "type": "string"
+                                },
+                                "content": {
+                                  "type": "string"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "default": {
+              "description": "Unexpected error"
+            }
+          }
+        }
+      }
+    },
+    "components": {
+      "securitySchemes": {
+        "oauth2": {
+          "type": "oauth2",
+          "flows": {
+            "x-apikey": {
+              "tokenUrl": "https://iam.cloud.ibm.com/identity/token",
+              "grantType": "urn:ibm:params:oauth:grant-type:apikey",
+              "secretKeys": [
+                "apikey"
+              ],
+              "paramKeys": [],
+              "scopes": {}
+            }
+          }
+        }
+      }
+    }
+  }

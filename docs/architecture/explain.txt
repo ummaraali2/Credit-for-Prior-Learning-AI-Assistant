@@ -1,0 +1,53 @@
+Student Interface
+1. HOw a student can submiit a CPL Request
+i. student waiver based on experience
+ii. Student waiver based on prior coursework
+iii. Credit transfer 
+2. 
+
+
+Faculty Interface
+Faculty sees the student's information and AI recommendation of waiver request.
+
+The doc upload feature works!!!!!
+and it stores the data in MILVUS!!!!!!
+
+
+
+Final Demo on 3rd Dec
+
+i. student waiver based on experience
+Documents needed : Resume that works  - Shihua's resume 
+
+
+ii. Student waiver based on prior coursework
+Documents needed: Syllabus copy, and transcript  pjm 5900 -from another university 
+
+
+
+iii. Credit transfer 
+Documents needed: Syllabus copy, and transcript   pjm 6010 - from another university 
+
+
+5 documents needed.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

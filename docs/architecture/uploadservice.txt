@@ -1,0 +1,782 @@
+"""
+CPL Document Upload Service - Unified Version
+==============================================
+Single Flask backend that:
+1. Receives documents from Watson Assistant
+2. Embeds metadata directly in the content (for Prompt Lab compatibility)
+3. Stores in Milvus via watsonx.ai
+4. Tracks requests in Iceberg
+
+Key Changes from Original:
+- Larger chunk size (1500 chars instead of 380)
+- Metadata embedded IN the text content
+- Works with Prompt Lab vector search
+"""
+
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import os
+from dotenv import load_dotenv
+from ibm_watsonx_ai import APIClient, Credentials
+from ibm_watsonx_ai.foundation_models.embeddings import Embeddings
+from ibm_watsonx_ai.foundation_models.extensions.rag.vector_stores import MilvusVectorStore
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_core.documents import Document
+import PyPDF2
+import docx
+import io
+import uuid
+from datetime import datetime
+from iceberg_handler import get_iceberg_handler
+
+load_dotenv()
+app = Flask(__name__)
+CORS(app)
+
+# ==================== CONFIGURATION ====================
+
+# Chunk settings - INCREASED for better context
+CHUNK_SIZE = 1500      # Larger chunks = more context per chunk
+CHUNK_OVERLAP = 200    # Overlap to maintain continuity
+
+# Collection name
+COLLECTION_NAME = 'cpl_documents_v6'  # New collection with embedded metadata
+
+# ==================== INITIALIZE SERVICES ====================
+
+# Initialize watsonx.ai
+credentials = Credentials(
+    api_key=os.getenv('WATSONX_AI_APIKEY'),
+    url=os.getenv('WATSONX_AI_SERVICE_URL')
+)
+api_client = APIClient(credentials)
+api_client.set.default_project(os.getenv('WATSONX_AI_PROJECT_ID'))
+
+# Initialize Embeddings
+embedding = Embeddings(
+    model_id='ibm/slate-125m-english-rtrvr-v2',
+    api_client=api_client
+)
+
+# Initialize Text Splitter with LARGER chunk size
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=CHUNK_SIZE,
+    chunk_overlap=CHUNK_OVERLAP,
+    length_function=len,
+    is_separator_regex=False,
+)
+
+# Initialize Milvus Vector Store
+vector_store = MilvusVectorStore(
+    api_client=api_client,
+    connection_id=os.getenv('MILVUS_CONNECTION_ID'),
+    collection_name=COLLECTION_NAME,
+    embedding_function=embedding
+)
+
+# Initialize Iceberg Handler
+iceberg = get_iceberg_handler()
+
+print("=" * 60)
+print("CPL DOCUMENT SERVICE - UNIFIED VERSION")
+print("=" * 60)
+print(f"✅ watsonx.ai connected")
+print(f"   Embedding Model: ibm/slate-125m-english-rtrvr-v2")
+print(f"   Milvus Collection: {COLLECTION_NAME}")
+print(f"   Chunk Size: {CHUNK_SIZE} (with {CHUNK_OVERLAP} overlap)")
+print(f"   Feature: Embedded metadata in content")
+print("=" * 60)
+
+# ==================== HELPER FUNCTIONS ====================
+
+def extract_text(file_bytes, filename):
+    """Extract text from PDF/DOCX/TXT files."""
+    try:
+        if filename.lower().endswith('.pdf'):
+            pdf_reader = PyPDF2.PdfReader(io.BytesIO(file_bytes))
+            text = ""
+            for page in pdf_reader.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    text += page_text + "\n"
+            return text.strip()
+        
+        elif filename.lower().endswith('.docx'):
+            doc = docx.Document(io.BytesIO(file_bytes))
+            text = "\n".join([para.text for para in doc.paragraphs])
+            return text.strip()
+        
+        elif filename.lower().endswith('.txt'):
+            return file_bytes.decode('utf-8')
+        
+        else:
+            raise ValueError(f"Unsupported file type: {filename}")
+    except Exception as e:
+        raise ValueError(f"Text extraction failed: {str(e)}")
+
+
+def detect_document_type(filename):
+    """Auto-detect document type from filename."""
+    filename_lower = filename.lower()
+    
+    if 'transcript' in filename_lower:
+        return 'transcript'
+    elif 'resume' in filename_lower or 'cv' in filename_lower:
+        return 'resume'
+    elif 'syllabus' in filename_lower:
+        # Check if it's an NU syllabus or student syllabus
+        if any(x in filename_lower for x in ['nu_', 'northeastern', 'pjm']):
+            return 'nu_syllabus'
+        else:
+            return 'student_syllabus'
+    else:
+        return 'other'
+
+
+def create_embedded_content(chunk_text, metadata):
+    """
+    ⭐ KEY FUNCTION: Embed metadata directly in the content.
+    
+    This makes metadata:
+    1. SEARCHABLE by vector search (it's in the text!)
+    2. VISIBLE to the LLM (it's in the grounded context!)
+    """
+    
+    # Extract metadata values with defaults
+    nuid = metadata.get('nuid', 'N/A') or 'N/A'
+    student_name = metadata.get('student_name', 'N/A') or 'N/A'
+    document_type = metadata.get('document_type', 'unknown') or 'unknown'
+    request_type = metadata.get('request_type', 'N/A') or 'N/A'
+    target_course = metadata.get('target_course', 'N/A') or 'N/A'
+    filename = metadata.get('filename', 'unknown') or 'unknown'
+    
+    # Build the enriched content with metadata header
+    enriched_content = f"""[DOCUMENT METADATA]
+NUID: {nuid}
+Student Name: {student_name}
+Document Type: {document_type}
+Request Type: {request_type}
+Target Course: {target_course}
+Source File: {filename}
+[END METADATA]
+
+[CONTENT]
+{chunk_text}
+[END CONTENT]"""
+    
+    return enriched_content
+
+
+# ==================== API ENDPOINTS ====================
+
+@app.route('/api/upload', methods=['POST'])
+def upload_document():
+    """
+    Universal upload endpoint for all document types.
+    
+    Handles:
+    - Student documents (resume, transcript, syllabus) - with full metadata
+    - NU reference syllabi - with course info only
+    
+    All documents get metadata embedded in content for Prompt Lab compatibility.
+    """
+    try:
+        # Validate file
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'error': 'No file provided'}), 400
+        
+        file = request.files['file']
+        filename = file.filename
+        file_bytes = file.read()
+        
+        # Get metadata from form
+        student_name = request.form.get('studentName', 'N/A')
+        nuid = request.form.get('nuid', 'N/A')
+        request_type = request.form.get('requestType', 'N/A')
+        target_course = request.form.get('targetCourse', 'N/A')
+        
+        # Auto-detect document type
+        document_type = detect_document_type(filename)
+        
+        # Generate document ID
+        document_id = str(uuid.uuid4())
+        
+        print(f"\n{'='*60}")
+        print(f"📥 UPLOADING: {filename}")
+        print(f"{'='*60}")
+        print(f"   📄 Document Type: {document_type}")
+        print(f"   👤 Student: {student_name} ({nuid})")
+        print(f"   📋 Request Type: {request_type}")
+        print(f"   🎯 Target Course: {target_course}")
+        
+        # ==================== EXTRACT & CHUNK ====================
+        
+        print(f"\n   📄 Extracting text...")
+        text_content = extract_text(file_bytes, filename)
+        print(f"      ✅ Extracted {len(text_content)} characters")
+        
+        print(f"\n   ✂️  Chunking (size={CHUNK_SIZE}, overlap={CHUNK_OVERLAP})...")
+        doc = Document(
+            page_content=text_content,
+            metadata={'document_name': filename}
+        )
+        chunks = text_splitter.split_documents([doc])
+        print(f"      ✅ Created {len(chunks)} chunks")
+        
+        # ==================== EMBED METADATA & PREPARE ====================
+        
+        print(f"\n   🏷️  Embedding metadata in content...")
+        
+        # Prepare metadata dict
+        metadata = {
+            'nuid': nuid,
+            'student_name': student_name,
+            'document_type': document_type,
+            'request_type': request_type,
+            'target_course': target_course,
+            'filename': filename
+        }
+        
+        documents = []
+        for i, chunk in enumerate(chunks):
+            chunk_text = chunk.page_content
+            pk = f"{document_id}_{i}"
+            
+            # ⭐ Create content with EMBEDDED metadata
+            enriched_content = create_embedded_content(chunk_text, metadata)
+            
+            documents.append({
+                'content': enriched_content,  # Metadata is IN the content!
+                'metadata': {
+                    'pk': pk,
+                    'document_id': document_id,
+                    'document_name': filename,
+                    'document_type': document_type,
+                    'page': i + 1,
+                    'sequence_number': i,
+                    'student_name': student_name,
+                    'nuid': nuid,
+                    'target_course': target_course,
+                    'request_type': request_type
+                }
+            })
+        
+        # Show sample of first chunk
+        if documents:
+            print(f"\n   📋 Sample chunk (first 300 chars):")
+            print(f"   {'-'*50}")
+            sample = documents[0]['content'][:300].replace('\n', '\n   ')
+            print(f"   {sample}...")
+            print(f"   {'-'*50}")
+        
+        # ==================== STORE IN MILVUS ====================
+        
+        print(f"\n   🚀 Uploading to Milvus...")
+        result = vector_store.add_documents(documents)
+        print(f"      ✅ Stored {len(chunks)} chunks with embedded metadata")
+        
+        # ==================== STORE IN ICEBERG (if student doc) ====================
+        
+        request_id = None
+        if document_type in ['resume', 'transcript', 'student_syllabus'] and nuid != 'N/A':
+            print(f"\n   📊 Storing in Iceberg...")
+            request_id = iceberg.insert_request({
+                'document_id': document_id,
+                'student_name': student_name,
+                'nuid': nuid,
+                'request_type': request_type,
+                'target_course': target_course,
+                'document_name': filename
+            })
+            if request_id:
+                print(f"      ✅ Request ID: {request_id}")
+        
+        # ==================== DONE ====================
+        
+        print(f"\n   ✅ UPLOAD COMPLETE!")
+        print(f"{'='*60}\n")
+        
+        return jsonify({
+            'success': True,
+            'document_id': document_id,
+            'request_id': request_id,
+            'filename': filename,
+            'document_type': document_type,
+            'student_name': student_name,
+            'nuid': nuid,
+            'request_type': request_type,
+            'target_course': target_course,
+            'chunks_created': len(chunks),
+            'chunk_size': CHUNK_SIZE,
+            'characters_processed': len(text_content),
+            'metadata_embedded': True,
+            'collection': COLLECTION_NAME
+        })
+        
+    except Exception as e:
+        print(f"\n❌ ERROR: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# Keep the old endpoint for backward compatibility
+@app.route('/api/upload-to-watsonx', methods=['POST'])
+def upload_to_watsonx():
+    """Backward compatible endpoint - redirects to new upload."""
+    return upload_document()
+
+
+@app.route('/api/get-requests', methods=['GET'])
+def get_requests():
+    """Get all CPL requests from Iceberg."""
+    try:
+        requests_list = iceberg.get_all_requests()
+        return jsonify({
+            'success': True,
+            'requests': requests_list,
+            'count': len(requests_list)
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/update-status', methods=['PUT'])
+def update_status():
+    """Update request status in Iceberg."""
+    try:
+        data = request.json
+        success = iceberg.update_status(
+            request_id=data.get('requestId'),
+            status=data.get('status'),
+            credits=data.get('credits'),
+            notes=data.get('notes', ''),
+            updated_by=data.get('updatedBy', 'Advisor')
+        )
+        return jsonify({'success': success})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/search', methods=['POST'])
+def search_documents():
+    """Search documents in Milvus."""
+    try:
+        data = request.json
+        query = data.get('query')
+        top_k = data.get('topK', 5)
+        
+        if not query:
+            return jsonify({'success': False, 'error': 'Query required'}), 400
+        
+        results = vector_store.search(query, k=top_k)
+        
+        return jsonify({
+            'success': True,
+            'query': query,
+            'results': results,
+            'count': len(results)
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/health', methods=['GET'])
+def health():
+    """Health check endpoint."""
+    return jsonify({
+        'status': 'OK',
+        'service': 'CPL Document Service',
+        'version': '2.0 - Embedded Metadata',
+        'config': {
+            'collection': COLLECTION_NAME,
+            'chunk_size': CHUNK_SIZE,
+            'chunk_overlap': CHUNK_OVERLAP,
+            'metadata_embedded': True
+        }
+    })
+
+
+@app.route('/', methods=['GET'])
+def home():
+    """API info."""
+    return jsonify({
+        'service': 'CPL Document Upload Service',
+        'version': '2.0 - Unified with Embedded Metadata',
+        'features': [
+            'Larger chunk size (1500 chars)',
+            'Metadata embedded in content',
+            'Works with Prompt Lab vector search',
+            'Single endpoint for all documents'
+        ],
+        'endpoints': {
+            'upload': 'POST /api/upload',
+            'search': 'POST /api/search',
+            'get_requests': 'GET /api/get-requests',
+            'update_status': 'PUT /api/update-status',
+            'health': 'GET /health'
+        }
+    })
+
+
+# ==================== START SERVER ====================
+
+if __name__ == '__main__':
+    print("\n🚀 Starting CPL Document Service...")
+    print(f"   Collection: {COLLECTION_NAME}")
+    print(f"   Chunk Size: {CHUNK_SIZE}")
+    print(f"   Metadata: Embedded in content")
+    print(f"   Port: 5000")
+    print("")
+    app.run(host='0.0.0.0', port=5000, debug=True)
+
+
+
+
+
+
+
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import os
+from dotenv import load_dotenv
+from ibm_watsonx_ai import APIClient, Credentials
+from ibm_watsonx_ai.foundation_models.embeddings import Embeddings
+from ibm_watsonx_ai.foundation_models.extensions.rag.vector_stores import MilvusVectorStore
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_core.documents import Document
+import PyPDF2
+import docx
+import io
+import uuid
+from datetime import datetime
+from iceberg_handler import get_iceberg_handler
+
+load_dotenv()
+app = Flask(__name__)
+CORS(app)
+
+# ==================== INITIALIZE SERVICES ====================
+
+# Initialize watsonx.ai
+credentials = Credentials(
+    api_key=os.getenv('WATSONX_AI_APIKEY'),
+    url=os.getenv('WATSONX_AI_SERVICE_URL')
+)
+api_client = APIClient(credentials)
+api_client.set.default_project(os.getenv('WATSONX_AI_PROJECT_ID'))
+
+# Initialize Embeddings
+embedding = Embeddings(
+    model_id='ibm/slate-125m-english-rtrvr-v2',
+    api_client=api_client
+)
+
+# Initialize Text Splitter
+text_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=380,
+    chunk_overlap=50,
+    length_function=len,
+    is_separator_regex=False,
+)
+
+# Initialize Milvus Vector Store
+# UPDATED: Using v4 collection with L2 + HNSW (watsonx.ai compatible)
+vector_store = MilvusVectorStore(
+    api_client=api_client,
+    connection_id=os.getenv('MILVUS_CONNECTION_ID'),
+    collection_name='cpl_documents_v5',  # ← CHANGED to v4
+    embedding_function=embedding
+)
+
+# Initialize Iceberg Handler
+iceberg = get_iceberg_handler()
+
+print("✅ watsonx.ai services initialized")
+print(f"   Model: ibm/slate-125m-english-rtrvr-v2")
+print(f"   Milvus Collection: cpl_documents_v4")  # ← UPDATED
+print(f"   Iceberg Table: cpl_requests")
+print(f"   Chunk size: 380 (avoids 512 token limit)")
+print(f"   Overlap: 50")
+
+# ==================== HELPER FUNCTIONS ====================
+
+def extract_text(file_bytes, filename):
+    """Extract text from PDF/DOCX/TXT"""
+    try:
+        if filename.endswith('.pdf'):
+            pdf_reader = PyPDF2.PdfReader(io.BytesIO(file_bytes))
+            text = ""
+            for page in pdf_reader.pages:
+                text += page.extract_text() + "\n"
+            return text.strip()
+        
+        elif filename.endswith('.docx'):
+            doc = docx.Document(io.BytesIO(file_bytes))
+            text = "\n".join([para.text for para in doc.paragraphs])
+            return text.strip()
+        
+        elif filename.endswith('.txt'):
+            return file_bytes.decode('utf-8')
+        
+        else:
+            raise ValueError("Unsupported file type")
+    except Exception as e:
+        raise ValueError(f"Text extraction failed: {str(e)}")
+
+# ==================== API ENDPOINTS ====================
+
+@app.route('/api/upload-to-watsonx', methods=['POST'])
+def upload_to_watsonx():
+    """
+    Upload document to BOTH Milvus AND Iceberg
+    Milvus: Document chunks + embeddings + student metadata
+    Iceberg: Student metadata (for status tracking)
+    """
+    try:
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'error': 'No file provided'}), 400
+        
+        file = request.files['file']
+        filename = file.filename
+        file_bytes = file.read()
+        
+        # CAPTURE STUDENT CONTEXT
+        student_name = request.form.get('studentName', 'Unknown')
+        nuid = request.form.get('nuid', 'N/A')
+        request_type = request.form.get('requestType', 'Not Specified')
+        target_course = request.form.get('targetCourse', 'Not Specified')
+        
+        print(f"\n📥 ========== PROCESSING {filename} ==========")
+        print(f"   👤 Student: {student_name} ({nuid})")
+        print(f"   📋 Request: {request_type}")
+        print(f"   🎯 Course: {target_course}")
+        
+        # Generate unique document ID
+        document_id = str(uuid.uuid4())
+        
+        # Determine document type
+        filename_lower = filename.lower()
+        if 'transcript' in filename_lower:
+            document_type = 'transcript'
+        elif 'resume' in filename_lower or 'cv' in filename_lower:
+            document_type = 'resume'
+        else:
+            document_type = 'student_syllabus'
+        
+        print(f"   📄 Document Type: {document_type}")
+        
+        # ==================== PART 1: MILVUS ====================
+        
+        print("\n   📦 PART 1: Storing in MILVUS...")
+        
+        # Extract text
+        print("   📄 STEP 1: Extracting text...")
+        text_content = extract_text(file_bytes, filename)
+        print(f"      ✅ Extracted {len(text_content)} characters")
+        
+        # Chunk document
+        print(f"   ✂️  STEP 2: Chunking (size=380, overlap=50)...")
+        doc = Document(
+            page_content=text_content,
+            metadata={'document_name': filename}
+        )
+        chunks = text_splitter.split_documents([doc])
+        print(f"      ✅ Created {len(chunks)} chunks")
+        
+        # Prepare documents for Milvus
+        print("   📄 STEP 3: Preparing documents for Milvus...")
+        documents = []
+        char_position = 0
+        
+        for i, chunk in enumerate(chunks):
+            chunk_text = chunk.page_content
+            pk = f"{document_id}_{i}"
+            
+            # FIXED: Use 'content' key (watsonx.ai SDK maps this to 'text' field)
+            documents.append({
+                'content': chunk_text,  # ← CRITICAL: Must be 'content', not 'text'
+                'metadata': {
+                    'pk': pk,
+                    'document_id': document_id,
+                    'document_name': filename,
+                    'document_type': document_type,
+                    'page': i + 1,
+                    'start_index': char_position,
+                    'sequence_number': i,
+                    # Student context
+                    'student_name': student_name,
+                    'nuid': nuid,
+                    'target_course': target_course,
+                    'request_type': request_type
+                }
+            })
+            
+            char_position += len(chunk_text)
+        
+        # Upload to Milvus
+        print(f"   🚀 STEP 4: Uploading to Milvus...")
+        result = vector_store.add_documents(documents)
+        print(f"      ✅ Stored {len(chunks)} chunks in Milvus")
+        
+        # ==================== PART 2: ICEBERG ====================
+        
+        print("\n   📊 PART 2: Storing in ICEBERG...")
+        
+        request_id = iceberg.insert_request({
+            'document_id': document_id,
+            'student_name': student_name,
+            'nuid': nuid,
+            'request_type': request_type,
+            'target_course': target_course,
+            'document_name': filename
+        })
+        
+        if request_id:
+            print(f"      ✅ Stored metadata in Iceberg table")
+            print(f"      📋 Request ID: {request_id}")
+        else:
+            print(f"      ⚠️  Iceberg insert failed")
+        
+        # ==================== COMPLETE ====================
+        
+        print(f"\n   ✅ UPLOAD COMPLETE!")
+        print(f"   📊 Document ID: {document_id}")
+        print(f"   📄 Type: {document_type}")
+        print(f"   📦 Milvus: {len(chunks)} chunks")
+        print(f"   📋 Iceberg: 1 record")
+        print(f"   👤 Student: {student_name} ({nuid})")
+        print(f"==========================================\n")
+        
+        return jsonify({
+            'success': True,
+            'document_id': document_id,
+            'request_id': request_id,
+            'filename': filename,
+            'document_type': document_type,
+            'student_name': student_name,
+            'nuid': nuid,
+            'request_type': request_type,
+            'target_course': target_course,
+            'chunks_created': len(chunks),
+            'characters_processed': len(text_content),
+            'storage': {
+                'milvus': f'{len(chunks)} chunks (type: {document_type})',
+                'iceberg': 'Student metadata stored'
+            }
+        })
+        
+    except Exception as e:
+        print(f"\n❌ ========== ERROR ==========")
+        print(f"File: {filename if 'filename' in locals() else 'Unknown'}")
+        print(f"Error: {str(e)}")
+        print(f"=============================\n")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/get-requests', methods=['GET'])
+def get_requests():
+    """Get all CPL requests FROM ICEBERG TABLE"""
+    try:
+        print("\n🔍 ========== QUERYING ICEBERG FOR REQUESTS ==========")
+        requests = iceberg.get_all_requests()
+        print(f"   ✅ Found {len(requests)} requests in Iceberg")
+        print(f"==========================================\n")
+        
+        return jsonify({
+            'success': True,
+            'requests': requests,
+            'count': len(requests),
+            'source': 'iceberg'
+        })
+        
+    except Exception as e:
+        print(f"\n❌ ICEBERG QUERY ERROR: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/update-status', methods=['PUT'])
+def update_status():
+    """Update request status in Iceberg table"""
+    try:
+        data = request.json
+        success = iceberg.update_status(
+            request_id=data.get('requestId'),
+            status=data.get('status'),
+            credits=data.get('credits'),
+            notes=data.get('notes', ''),
+            updated_by=data.get('updatedBy', 'Advisor')
+        )
+        
+        if success:
+            return jsonify({'success': True})
+        else:
+            return jsonify({'success': False}), 500
+            
+    except Exception as e:
+        print(f"❌ Status update error: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/search', methods=['POST'])
+def search_documents():
+    """Search documents in Milvus vector store"""
+    try:
+        data = request.json
+        query = data.get('query')
+        top_k = data.get('topK', 5)
+        
+        if not query:
+            return jsonify({'success': False, 'error': 'Query required'}), 400
+        
+        results = vector_store.search(query, k=top_k)
+        
+        return jsonify({
+            'success': True,
+            'query': query,
+            'results': results,
+            'count': len(results)
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/health', methods=['GET'])
+def health():
+    """Health check"""
+    return jsonify({
+        'status': 'OK',
+        'service': 'watsonx.ai Upload Service',
+        'configuration': {
+            'embedding_model': 'ibm/slate-125m-english-rtrvr-v2',
+            'chunk_size': 380,
+            'chunk_overlap': 50,
+            'milvus_collection': 'cpl_documents_v4'  # ← UPDATED
+        }
+    })
+
+@app.route('/', methods=['GET'])
+def home():
+    """API information"""
+    return jsonify({
+        'service': 'watsonx.ai Upload Service',
+        'version': '5.0 - cpl_documents_v4 (L2 + HNSW)',  # ← UPDATED
+        'endpoints': {
+            'upload': 'POST /api/upload-to-watsonx',
+            'get_requests': 'GET /api/get-requests',
+            'update_status': 'PUT /api/update-status',
+            'search': 'POST /api/search'
+        }
+    })
+
+# ==================== START SERVER ====================
+
+if __name__ == '__main__':
+    print("\n🚀 ========== STARTING SERVER ==========")
+    print(f"Service: watsonx.ai Upload Service v5.0")
+    print(f"Port: 5000")
+    print(f"Collection: cpl_documents_v4 (L2 + HNSW)")  # ← UPDATED
+    print(f"Chunk size: 380 (avoids 512 token limit)")
+    print("======================================\n")
+    app.run(host='0.0.0.0', port=5000, debug=True)
