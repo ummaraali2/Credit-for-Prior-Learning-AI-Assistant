@@ -74,6 +74,8 @@ CPL-Website/
 │   ├── scripts/                      # Setup and maintenance scripts
 │   ├── utils/                        # Utility functions
 │   └── config/                       # Configuration files
+├── deployments/                      # Jupyter Notebook that contains the prompt + grounded documents deployment as an ai service
+│   ├── watsonx-ai/  
 ├── frontend/                         # Web application
 │   ├── pages/                        # HTML pages
 │   ├── assets/css/                   # Stylesheets
