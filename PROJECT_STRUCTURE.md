@@ -24,7 +24,10 @@ CPL-Website/
 │   │   ├── flush.py                 # Data cleanup
 │   │   ├── upload_nu_syllabi.py     # Bulk syllabus upload
 │   │   └── verify.py                # Data verification
-│   └── config/                       # Configuration files (empty)
+│   └── config/                      # Configuration files (empty)
+├── deployments/                     # Deployement services 
+│   ├── watsonx-ai/                  # watsonx ai - prompt lab and milvus 
+│   │   ├── CPL RAG Notebook.ipynb   # deployed ai service as a notebook 
 │
 ├── frontend/                         # Frontend application
 │   ├── pages/                        # HTML pages
