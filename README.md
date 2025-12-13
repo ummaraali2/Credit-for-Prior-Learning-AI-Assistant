@@ -327,3 +327,9 @@ This project is licensed under the ISC License - see the package.json file for d
 - Northeastern University College of Professional Studies
 - IBM watsonx.ai and IBM Cloud services
 - Open source community for Python and Node.js packages
+
+## Contact
+- Reach out to me for any collaborations - ummaraali2020@gmail.com
+
+## Contribution 
+- Please see the contributions.md file 
