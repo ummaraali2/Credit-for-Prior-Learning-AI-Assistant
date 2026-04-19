@@ -1,4 +1,4 @@
-# CPL Website - Credit for Prior Learning System
+# CPL Website - Credit for Prior Learning System 
 
 ## Demo
 
