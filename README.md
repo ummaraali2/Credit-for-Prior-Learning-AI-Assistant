@@ -338,7 +338,7 @@ The user testing report covering task completion rates, qualitative feedback, an
 
 **Infrastructure:** Milvus vector database (Apache 2.0 license). Apache Iceberg (Apache 2.0 license).
 
-A complete annotated reference list covering all libraries, SDKs, frameworks, Watson services documentation, and third-party resources is in the [User Manual](docs/setup/User%20Manual.pdf) (References section).
+A complete annotated reference list covering all libraries, SDKs, frameworks, Watson services documentation, and third-party resources is in the [User Manual](docs/User%20Manual.pdf) (References section).
 
 ---
 
