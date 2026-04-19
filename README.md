@@ -339,6 +339,7 @@ The user testing report covering task completion rates, qualitative feedback, an
 **Infrastructure:** Milvus vector database (Apache 2.0 license). Apache Iceberg (Apache 2.0 license).
 
 A complete annotated reference list covering all libraries, SDKs, frameworks, Watson services documentation, and third-party resources is in the [User Manual](docs/User%20Manual.pdf) (References section).
+For a complete reference list of all IBM Cloud APIs, watsonx services, Watson Assistant documentation, and open-source libraries used in this project, see [`CPL Reference Material.pdf`](docs/CPL%20Reference%20Material.pdf).
 
 ---
 
